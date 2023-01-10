@@ -1,12 +1,12 @@
 # %% Imports
 import matplotlib.pyplot as plt
-from datasets.mnistSparseDataset import MNISTCuboidalSparseDataset
+from datasets.mnistSparseDataset import MNISTSparseDataset
 from torchvision.datasets import MNIST
 import numpy as np
 
 # %% Set up dataset
 data_root = r"data\mnistCuboidalData\mnistTest64.csv"
-ds_cuboid = MNISTCuboidalSparseDataset(csv_file_dir=data_root, n=64, length=100)
+ds_cuboid = MNISTSparseDataset(csv_file_dir=data_root, n=64, length=100)
 ds_normal = MNIST(root=r"data\mnistPytorch", train=False)
 
 # %% Images to display

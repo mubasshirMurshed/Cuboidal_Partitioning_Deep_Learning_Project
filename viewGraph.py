@@ -1,13 +1,13 @@
 # %% Imports
 import matplotlib.pyplot as plt
-from datasets import *
+from datasets import MNISTGraphDataset
 from torchvision.datasets import MNIST
 from torch_geometric.utils import to_networkx
 import networkx as nx
 
 # %% Dataset
 ds1 = MNIST(r"data\mnistPytorch", train=False)
-ds2 = MNISTCuboidalGraphDataset(r"data\mnistNew\mnistTest128.csv", 10)
+ds2 = MNISTGraphDataset(r"data\mnistNew\mnistTest128.csv", 10)
 
 # %% Choose image start
 idx = 1
