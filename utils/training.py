@@ -12,6 +12,7 @@ from utils.dirManager import dirManager
 import os
 from dataModules.dataModule import DataModule
 
+
 class Trainer():
     """
     Controls the training process by taking in the model and the respective dataloaders with flags controlling
@@ -21,7 +22,7 @@ class Trainer():
             model: nn.Module, data_module: DataModule, 
             loss_fn: nn.Module, optimizer: Optimizer, hparams: Dict, 
             save_every_n_epoch: int, allow_log: bool, num_classes: int, print_conf_matrix: bool = True,
-            resume_from_ckpt: Union[str, None]  = None
+            resume_from_ckpt: Union[str, None]  = None, is_graph_model: bool = False
         ) -> None:
         """
         Saves model, datasets/loaders and all flags passed.
@@ -48,6 +49,8 @@ class Trainer():
         - resume_from_ckpt: str | None
             - A filepath to a checkpoint to resume training from under new given hyperparameters,
               if None, training will begin from scratch
+        - is_graph_model: bool
+            - A boolean value on whether the model is a GNN or not
         """
         # Save attributes
         self.model = model
@@ -60,6 +63,7 @@ class Trainer():
         self.num_classes = num_classes
         self.print_conf_matrix = print_conf_matrix
         self.resume_from_ckpt = resume_from_ckpt
+        self.is_graph_model = is_graph_model
 
         # Create and setup dataloaders
         self.data_module = data_module
@@ -79,6 +83,7 @@ class Trainer():
             model.load_state_dict(torch.load(resume_from_ckpt))
             print("Model successfully loaded from " + resume_from_ckpt)
             print('-' * 20)
+
 
     def fit(self):
         """
@@ -101,16 +106,24 @@ class Trainer():
         print("Hyperparamaters")
         print(self.hparams)
         print('-' * 20)
+        
+        # Determine training and validating functions
+        if not self.is_graph_model:
+            train_fn = self.train
+            validate_fn = self.validation
+        else:
+            train_fn = self.train_G
+            validate_fn = self.validation_G
 
         # Try-Catch block for allowing graceful finish with Keyboard Interrupts
         try:
             # Loop over requested epochs
             for epoch in range(self.max_epochs):
                 # Run training cycle
-                train_loss = self.train()
-                
+                train_loss = train_fn()
+
                 # Run validation cycle
-                val_loss, accuracy = self.validation()
+                val_loss, accuracy = validate_fn()
 
                 # Print metrics to console
                 print("Epoch: {}/{}, Training Loss: {:.3f}, Val Loss: {:.3f}, Val Accuracy: {:.2f}%".format(epoch+1, self.max_epochs, train_loss, val_loss, accuracy*100))
@@ -134,7 +147,7 @@ class Trainer():
         
         # Print confusion matrix
         if self.print_conf_matrix:
-            self.generateConfusionMatrix()
+            self.generateConfusionMatrix(validate_fn=validate_fn)
         
         if self.allow_log:
             # Save current model + output log
@@ -142,6 +155,7 @@ class Trainer():
 
             # Close logging
             self.logger.close()
+
 
     def train(self):
         """
@@ -169,6 +183,7 @@ class Trainer():
             running_loss += loss.item() # sum total loss in current epoch for print later
 
         return running_loss/len(self.training_loader) # returns the average training loss for the epoch
+
 
     def validation(self, conMatrix: Union[List[List[int]], None] = None):
         """
@@ -201,7 +216,8 @@ class Trainer():
 
             return running_loss/len(self.validation_loader), correct/total # return average validation loss, accuracy
 
-    def generateConfusionMatrix(self):
+
+    def generateConfusionMatrix(self, validate_fn):
         """
         Generates a confusion matrix on the current model perfomance
         """
@@ -211,7 +227,7 @@ class Trainer():
             matrix[i] = [0]*self.num_classes
 
         # Fill in confusion matrix
-        self.validation(conMatrix=matrix)
+        self.validate_fn(conMatrix=matrix)
 
         # Print formatted table heading
         for i in range(self.num_classes):
@@ -225,3 +241,62 @@ class Trainer():
             for elem in row:
                 print(f"{elem*100/categoryTotal:5.0f} ", end="")
             print(f"{sum(row):7d}")
+
+
+    def train_G(self):
+        """
+        Performs one training loop over the training data loader for graph neural network training.
+        """
+        # Put the model in training mode
+        self.model.train()
+        running_loss = 0
+        for batch in tqdm(self.training_loader, leave=False):
+            # Get batch of images and labels
+            batch = batch.to(self.device) # puts the data on the GPU
+
+            # Forward                                         
+            self.optimizer.zero_grad() # clear the gradients in model parameters
+            outputs = self.model(batch.x.float(), batch.edge_index, batch.batch) # forward pass and get predictions
+
+            # Backward
+            loss = self.loss_fn(outputs, batch.y) # calculate loss
+            loss.backward() # calculates gradient w.r.t to loss for all parameters in model that have requires_grad=True
+            
+            # Update weights
+            self.optimizer.step() # iterate over all parameters in the model with requires_grad=True and update their weights.
+
+            running_loss += loss.item() # sum total loss in current epoch for print later
+
+        return running_loss/len(self.training_loader) # returns the average training loss for the epoch
+
+
+    def validation_G(self, conMatrix: Union[List[List[int]], None] = None):
+        """
+        Performs one validation loop over the validation data loader for graph neural network training.
+        """
+        self.model.eval() # puts the model in validation mode
+        running_loss = 0
+        total = 0
+        correct = 0
+        
+        with torch.no_grad(): # save memory by not saving gradients which we don't need 
+            for batch in tqdm(self.validation_loader, leave=False):
+                # Get batch of images and labels
+                batch = batch.to(self.device) # put the data on the GPU
+                
+                # Forward
+                outputs = self.model(batch.x.float(), batch.edge_index, batch.batch) # passes image to the model, and gets an ouput which is the class probability prediction
+
+                # Calculate metrics
+                val_loss = self.loss_fn(outputs, batch.y) # calculates val_loss from model predictions and true labels
+                running_loss += val_loss.item()
+                _, predicted = torch.max(outputs, 1) # turns class probability predictions to class labels
+                total += batch.y.size(0) # sums the number of predictions
+                correct += (predicted == batch.y).sum().item() # sums the number of correct predictions
+
+                # Update confusion matrix
+                if conMatrix is not None:
+                    for i in range(len(batch.y)):
+                        conMatrix[batch.y[i]][predicted[i]] += 1
+
+            return running_loss/len(self.validation_loader), correct/total # return average validation loss, accuracy
