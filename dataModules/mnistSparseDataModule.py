@@ -1,6 +1,6 @@
 from dataModules.dataModule import DataModule
 from torch.utils.data import DataLoader
-from datasets import MNISTCuboidalSparseDataset
+from datasets import MNISTSparseDataset
 from typing import List
 
 class MNISTCuboidalSparseDataModule(DataModule):
@@ -31,10 +31,10 @@ class MNISTCuboidalSparseDataModule(DataModule):
         """
         Instantiate datasets for training and validation.
         """
-        self.train_set = MNISTCuboidalSparseDataset(csv_file_dir=self.train_dir, 
+        self.train_set = MNISTSparseDataset(csv_file_dir=self.train_dir, 
                                                     n=self.nCuboids, 
                                                     length=self.caps[0])
 
-        self.val_set = MNISTCuboidalSparseDataset(csv_file_dir=self.val_dir, 
+        self.val_set = MNISTSparseDataset(csv_file_dir=self.val_dir, 
                                                     n=self.nCuboids, 
                                                     length=self.caps[1])

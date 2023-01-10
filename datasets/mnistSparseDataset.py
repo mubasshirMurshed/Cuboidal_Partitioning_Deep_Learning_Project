@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 import pandas as pd
 from tqdm import tqdm
 
-class MNISTCuboidalSparseDataset(Dataset):
+class MNISTSparseDataset(Dataset):
     """
     A class that loads in the partitioned data of MNIST images all into RAM where each image
     is partitioned into n cuboids, each of which has 5 features of data attached.
