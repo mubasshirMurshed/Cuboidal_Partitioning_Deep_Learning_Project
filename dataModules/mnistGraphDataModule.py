@@ -18,8 +18,6 @@ class MNISTGraphDataModule(DataModule):
             - Directory of validation dataset
         - batch_size: int
             - How many data samples per batch to be loaded
-        - nCuboids: int
-            - Number of cuboids in partition
         - caps: List[int]
             - Length caps for training and validation datasets
         """
