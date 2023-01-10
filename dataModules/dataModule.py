@@ -3,6 +3,7 @@ from torch.utils import data as std
 from torch_geometric import loader as graph
 from typing import Union
 
+
 class DataModule():
     """
     A base class for data module encapsulation that allows easy instantiation of an organised
@@ -29,15 +30,18 @@ class DataModule():
         self.train_set = None
         self.val_set = None
 
+
     @abstractmethod
     def setup(self):
         pass
+
 
     def train_dataloader(self):
         """
         Returns the training dataloader.
         """
         return self.dataloader_class(dataset=self.train_set, batch_size=self.batch_size, shuffle=True)
+
 
     def val_dataloader(self):
         """

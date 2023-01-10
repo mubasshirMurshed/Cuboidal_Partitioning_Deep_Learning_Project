@@ -4,6 +4,7 @@ from torch import nn
 from torch import Tensor
 from torch.nn import functional as F
 
+
 class DimensionNetwork(nn.Module):
     """
     A fully connected linear network of dim-2-1.
@@ -20,6 +21,7 @@ class DimensionNetwork(nn.Module):
         self.linear1 = nn.Linear(dim, 2)
         self.linear2 = nn.Linear(2, 1)
         
+
     def forward(self, x: Tensor):
         """
         Defines forward propogation of the network.
@@ -34,7 +36,8 @@ class DimensionNetwork(nn.Module):
         x = F.relu(x)
         return x
 
-class CuboidalSparseNetwork(nn.Module):
+
+class MNIST_Sparse(nn.Module):
     """
     The larger scale mode of the sparse network that has sparse sub-networks for
     each block which then all combines into a fully connected linear network.
@@ -51,7 +54,7 @@ class CuboidalSparseNetwork(nn.Module):
         - numClasses: int
             - Number of classes to recognise
         """
-        super(CuboidalSparseNetwork, self).__init__()
+        super(MNIST_Sparse, self).__init__()
         self.networks = nn.ModuleList()
         self.numCuboids = numCuboids
         self.numClasses = numClasses
@@ -60,6 +63,7 @@ class CuboidalSparseNetwork(nn.Module):
             self.networks.append(DimensionNetwork(numFeatures))
         
         self.lin1 = nn.Linear(self.numCuboids, self.numClasses)
+        
         
     def forward(self, image: Tensor):
         """

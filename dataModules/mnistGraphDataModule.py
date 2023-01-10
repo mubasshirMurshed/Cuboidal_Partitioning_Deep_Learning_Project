@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 from datasets import MNISTGraphDataset
 from typing import List
 
+
 class MNISTGraphDataModule(DataModule):
     """
     A data module for the cuboidal sparse dataset
@@ -24,6 +25,7 @@ class MNISTGraphDataModule(DataModule):
         super().__init__(train_dir, val_dir, batch_size, DataLoader)
         self.caps = caps
     
+
     def setup(self):
         """
         Instantiate datasets for training and validation.

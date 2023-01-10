@@ -6,6 +6,7 @@ import pandas as pd
 from tqdm import tqdm
 from utils.utilities import adjacent
 
+
 class MNISTGraphDataset(InMemoryDataset):
     def __init__(self, root: str, filename: str, transform=None, pre_transform=None, length=None) -> None:
         self.length = length
@@ -14,13 +15,16 @@ class MNISTGraphDataset(InMemoryDataset):
         super(MNISTGraphDataset, self).__init__(root, transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
 
+
     @property
     def raw_file_names(self):
         return []
 
+
     @property
     def processed_file_names(self):
         return [f'{self.filename}.pt']
+
 
     def process(self):
         # Give UI information
@@ -98,6 +102,7 @@ class MNISTGraphDataset(InMemoryDataset):
         
         # Print separator lines
         print('-' * 20)
+
 
 class MNISTGraphDataset_Old(Dataset):
     def __init__(self, csv_file_dir, length = None) -> None:

@@ -1,5 +1,5 @@
-import torch
 from torch import Tensor
+
 
 def adjacent(c1: Tensor, c2: Tensor) -> bool:
     """

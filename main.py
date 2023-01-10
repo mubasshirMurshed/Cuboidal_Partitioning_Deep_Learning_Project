@@ -13,8 +13,8 @@ torch.manual_seed(42)
 # %% Instantiate model
 num_classes = 10
 num_cuboids = 128
-# model = CuboidalSparseNetwork(numCuboids=num_cuboids, numFeatures=5, numClasses=num_classes)
-model = ConvolutionalNetwork()
+# model = MNIST_Sparse(numCuboids=num_cuboids, numFeatures=5, numClasses=num_classes)
+model = MNIST_CNN()
 
 # Define hyperparameters
 hparams = {

@@ -1,5 +1,6 @@
 import sys
 
+
 class Logger():
     """
     A custom logger for stdout of the Python to direct output log to a file at end of runtime.
@@ -17,6 +18,7 @@ class Logger():
         self.terminal = sys.stdout
         self.log = open(filepath + filename, "x")   # Open in creation mode since file does not and should not exist
    
+
     def write(self, message: str):
         """
         Write out the output to each stream.
@@ -27,6 +29,7 @@ class Logger():
         """
         self.terminal.write(message)
         self.log.write(message)
+
 
     def flush(self):
         pass

@@ -4,6 +4,7 @@ from torchvision.datasets import MNIST
 from torchvision import transforms
 import torch
 
+
 class MNISTBWDataModule(DataModule):
     """
     A data module for the normal MNIST dataset
@@ -22,6 +23,7 @@ class MNISTBWDataModule(DataModule):
         """
         super().__init__(train_dir, val_dir, batch_size, DataLoader)
     
+
     def setup(self):
         """
         Instantiate datasets for training and validation.
@@ -37,6 +39,7 @@ class BWMask():
     """Converts greyscale to black and white"""
     def __init__(self, threshold: float):
         self.threshold = threshold
+
 
     def __call__(self, sample):
         return torch.where(sample > self.threshold, 1.0, 0.0)

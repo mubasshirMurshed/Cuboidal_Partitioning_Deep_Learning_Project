@@ -4,6 +4,7 @@ from torch.utils.data import Dataset
 import pandas as pd
 from tqdm import tqdm
 
+
 class MNISTSparseDataset(Dataset):
     """
     A class that loads in the partitioned data of MNIST images all into RAM where each image
@@ -66,11 +67,13 @@ class MNISTSparseDataset(Dataset):
         # Print separator lines
         print('-' * 20)
 
+
     def __len__(self):
         """
         Return length of the dataset.
         """
         return len(self.data)
+
 
     def __getitem__(self, index: int):
         """

@@ -2,7 +2,8 @@
 from torch import nn
 from torch import Tensor
 
-class LinearNetwork(nn.Module):
+
+class MNIST_Linear(nn.Module):
     """
     Simple linear fully-connected network for MNIST dataset.
     """
@@ -10,8 +11,9 @@ class LinearNetwork(nn.Module):
         """
         Initialising a single linear layer.
         """
-        super(LinearNetwork, self).__init__()
+        super(MNIST_Linear, self).__init__()
         self.linear1 = nn.Linear(784, 10)
+        
         
     def forward(self, x: Tensor):
         """

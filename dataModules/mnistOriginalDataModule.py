@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST
 from torchvision import transforms
 
+
 class MNISTDataModule(DataModule):
     """
     A data module for the normal MNIST dataset
@@ -21,6 +22,7 @@ class MNISTDataModule(DataModule):
         """
         super().__init__(train_dir, val_dir, batch_size, DataLoader)
     
+
     def setup(self):
         """
         Instantiate datasets for training and validation.

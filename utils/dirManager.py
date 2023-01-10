@@ -3,6 +3,7 @@ from datetime import datetime
 from os import makedirs
 from dataModules.dataModule import DataModule
 
+
 def dirManager(model: nn.Module, data_module: DataModule):
     """
     Use model information to create the specific directories for logging and checkpoints

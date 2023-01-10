@@ -3,7 +3,8 @@ from torch.utils.data import DataLoader
 from datasets import MNISTSparseDataset
 from typing import List
 
-class MNISTCuboidalSparseDataModule(DataModule):
+
+class MNISTSparseDataModule(DataModule):
     """
     A data module for the cuboidal sparse dataset
     """
@@ -27,6 +28,7 @@ class MNISTCuboidalSparseDataModule(DataModule):
         self.caps = caps
         self.nCuboids = nCuboids
     
+
     def setup(self):
         """
         Instantiate datasets for training and validation.

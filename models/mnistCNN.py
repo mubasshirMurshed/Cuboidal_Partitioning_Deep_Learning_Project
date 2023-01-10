@@ -2,8 +2,9 @@
 from torch import nn
 from torch import Tensor
 
+
 # Define model
-class ConvolutionalNetwork(nn.Module):
+class MNIST_CNN(nn.Module):
     """
     A simple CNN for the MNIST dataset with two convolutional layers
     and one linear layer.
@@ -12,7 +13,7 @@ class ConvolutionalNetwork(nn.Module):
         """
         Defines the layers of the neural network
         """
-        super(ConvolutionalNetwork, self).__init__()
+        super(MNIST_CNN, self).__init__()
         self.conv1 = nn.Sequential(         
             nn.Conv2d(in_channels=1, out_channels=16, kernel_size=5, stride=1, padding=2),                              
             nn.ReLU(),
@@ -26,6 +27,7 @@ class ConvolutionalNetwork(nn.Module):
         )
 
         self.lin = nn.Linear(32 * 7 * 7, 10)
+        
         
     def forward(self, x: Tensor):
         """

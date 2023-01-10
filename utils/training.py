@@ -3,7 +3,6 @@ import torch
 from tqdm import tqdm
 import torch.nn as nn
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from typing import List, Union, Dict
 import sys
