@@ -1,0 +1,4 @@
+Hyperparamaters
+{'max_epochs': 100, 'learning_rate': 0.002, 'batch_size': 128, 'optimizer': 'Adam', 'loss_fn': 'CrossEntropyLoss'}
+--------------------
+Training halted

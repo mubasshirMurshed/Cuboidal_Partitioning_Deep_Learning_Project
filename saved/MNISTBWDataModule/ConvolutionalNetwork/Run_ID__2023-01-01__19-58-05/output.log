@@ -1,0 +1,47 @@
+Hyperparamaters
+{'max_epochs': 100, 'learning_rate': 0.002, 'batch_size': 128, 'optimizer': 'Adam', 'loss_fn': 'CrossEntropyLoss'}
+--------------------
+Epoch: 1/100, Training Loss: 0.196, Val Loss: 0.060, Val Accuracy: 97.98%
+--------------------
+Epoch: 2/100, Training Loss: 0.057, Val Loss: 0.042, Val Accuracy: 98.63%
+--------------------
+Epoch: 3/100, Training Loss: 0.041, Val Loss: 0.045, Val Accuracy: 98.39%
+--------------------
+Epoch: 4/100, Training Loss: 0.031, Val Loss: 0.039, Val Accuracy: 98.74%
+--------------------
+Epoch: 5/100, Training Loss: 0.025, Val Loss: 0.038, Val Accuracy: 98.67%
+--------------------
+Epoch: 6/100, Training Loss: 0.021, Val Loss: 0.043, Val Accuracy: 98.60%
+--------------------
+Epoch: 7/100, Training Loss: 0.018, Val Loss: 0.035, Val Accuracy: 98.88%
+--------------------
+Epoch: 8/100, Training Loss: 0.017, Val Loss: 0.039, Val Accuracy: 98.93%
+--------------------
+Epoch: 9/100, Training Loss: 0.014, Val Loss: 0.041, Val Accuracy: 98.72%
+--------------------
+Epoch: 10/100, Training Loss: 0.012, Val Loss: 0.040, Val Accuracy: 98.95%
+--------------------
+Epoch: 11/100, Training Loss: 0.011, Val Loss: 0.049, Val Accuracy: 98.72%
+--------------------
+Epoch: 12/100, Training Loss: 0.009, Val Loss: 0.053, Val Accuracy: 98.74%
+--------------------
+Epoch: 13/100, Training Loss: 0.008, Val Loss: 0.053, Val Accuracy: 98.70%
+--------------------
+Epoch: 14/100, Training Loss: 0.008, Val Loss: 0.063, Val Accuracy: 98.74%
+--------------------
+Epoch: 15/100, Training Loss: 0.008, Val Loss: 0.049, Val Accuracy: 98.84%
+--------------------
+Epoch: 16/100, Training Loss: 0.008, Val Loss: 0.046, Val Accuracy: 98.91%
+--------------------
+Training halted
+     0     1     2     3     4     5     6     7     8     9
+0   99     0     0     0     0     0     0     0     0     0     980
+1    0   100     0     0     0     0     0     0     0     0    1135
+2    0     0   100     0     0     0     0     0     0     0    1032
+3    0     0     0    99     0     0     0     0     0     0    1010
+4    0     0     0     0    99     0     0     0     0     0     982
+5    0     0     0     0     0    99     0     0     0     0     892
+6    0     0     0     0     0     0    99     0     0     0     958
+7    0     0     1     0     0     0     0    99     0     0    1028
+8    0     0     0     0     0     0     0     0    99     0     974
+9    0     0     0     0     1     0     0     1     0    98    1009

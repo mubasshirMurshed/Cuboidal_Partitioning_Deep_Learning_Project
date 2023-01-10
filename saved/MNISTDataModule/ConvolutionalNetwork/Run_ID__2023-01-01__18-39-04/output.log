@@ -1,0 +1,19 @@
+Hyperparamaters
+{'max_epochs': 100, 'learning_rate': 0.002, 'batch_size': 128, 'optimizer': 'Adam', 'loss_fn': 'CrossEntropyLoss'}
+--------------------
+Epoch: 1/100, Training Loss: 0.192, Val Loss: 0.055, Val Accuracy: 98.16%
+--------------------
+Epoch: 2/100, Training Loss: 0.050, Val Loss: 0.036, Val Accuracy: 98.81%
+--------------------
+Training halted
+     0     1     2     3     4     5     6     7     8     9
+0  100     0     0     0     0     0     0     0     0     0     980
+1    0    99     0     0     0     0     0     0     0     0    1135
+2    0     0    98     0     0     0     0     0     0     0    1032
+3    0     0     0   100     0     0     0     0     0     0    1010
+4    0     0     0     0    99     0     0     0     0     0     982
+5    0     0     0     1     0    99     0     0     0     0     892
+6    1     0     0     0     0     0    98     0     0     0     958
+7    0     0     0     0     0     0     0    99     0     0    1028
+8    1     0     0     0     0     1     0     0    98     0     974
+9    1     0     0     0     1     1     0     0     0    96    1009
