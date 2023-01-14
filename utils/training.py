@@ -66,7 +66,6 @@ class Trainer():
 
         # Create and setup dataloaders
         self.data_module = data_module
-        self.data_module.setup()
         self.training_loader = self.data_module.train_dataloader()
         self.validation_loader = self.data_module.val_dataloader()
         

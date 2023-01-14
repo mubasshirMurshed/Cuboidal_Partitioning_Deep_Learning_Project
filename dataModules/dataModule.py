@@ -29,6 +29,7 @@ class DataModule():
         self.dataloader_class = dataloader_class
         self.train_set = None
         self.val_set = None
+        self.setup()
 
 
     @abstractmethod
