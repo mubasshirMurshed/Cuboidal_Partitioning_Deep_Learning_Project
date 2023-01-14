@@ -3,3 +3,4 @@
 from models.mnistSparse import *
 from models.mnistCNN import *
 from models.mnistLinear import *
+from models.simpleGNN import *

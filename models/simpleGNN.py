@@ -5,14 +5,14 @@ import torch.nn.functional as F
 from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
 
 embedding_size = 64
-class GCN(torch.nn.Module):
-    def __init__(self):
+class MNIST_GCN(torch.nn.Module):
+    def __init__(self, num_features: int):
         # Init parent
-        super(GCN, self).__init__()
+        super(MNIST_GCN, self).__init__()
         torch.manual_seed(42)
 
         # GCN layers
-        self.initial_conv = GCNConv(3, 64)
+        self.initial_conv = GCNConv(num_features, 64)
         self.conv1 = GCNConv(64, 64)
         self.conv2 = GCNConv(64, 32)
         self.conv3 = GCNConv(32, 32)

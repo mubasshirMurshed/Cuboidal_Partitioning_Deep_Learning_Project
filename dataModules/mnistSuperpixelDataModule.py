@@ -7,15 +7,11 @@ class MNISTSuperpixelDataModule(DataModule):
     """
     A data module for the superpixel MNIST dataset
     """
-    def __init__(self, train_dir: str, val_dir: str, batch_size: int):
+    def __init__(self, batch_size: int):
         """
         Save attributes.
 
         Args:
-        - train_dir: str
-            - Directory of training dataset
-        - val_dir: str
-            - Directory of validation dataset
         - batch_size: int
             - How many data samples per batch to be loaded
         """
