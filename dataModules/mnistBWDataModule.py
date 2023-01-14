@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST
 from torchvision import transforms
 import torch
+from torch import Tensor
 
 
 class MNISTBWDataModule(DataModule):
@@ -41,5 +42,13 @@ class BWMask():
         self.threshold = threshold
 
 
-    def __call__(self, sample):
+    def __call__(self, sample: Tensor):
+        """
+        Converts values in a given tensor to 1 if they are above a certain
+        threshold, otherwise 0.
+
+        Args:
+        - sample: Tensor
+            - A tensor image
+        """
         return torch.where(sample > self.threshold, 1.0, 0.0)

@@ -4,7 +4,7 @@ from tqdm import tqdm
 import torch.nn as nn
 from torch.optim import Optimizer
 from torch.utils.tensorboard import SummaryWriter
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Callable
 import sys
 from utils.logger import Logger
 from utils.dirManager import dirManager
@@ -216,7 +216,7 @@ class Trainer():
             return running_loss/len(self.validation_loader), correct/total # return average validation loss, accuracy
 
 
-    def generateConfusionMatrix(self, validate_fn):
+    def generateConfusionMatrix(self, validate_fn: Callable):
         """
         Generates a confusion matrix on the current model perfomance
         """
@@ -226,7 +226,7 @@ class Trainer():
             matrix[i] = [0]*self.num_classes
 
         # Fill in confusion matrix
-        self.validate_fn(conMatrix=matrix)
+        validate_fn(conMatrix=matrix)
 
         # Print formatted table heading
         for i in range(self.num_classes):

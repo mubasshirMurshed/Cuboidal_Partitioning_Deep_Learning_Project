@@ -10,7 +10,7 @@ class MNISTSparseDataset(Dataset):
     A class that loads in the partitioned data of MNIST images all into RAM where each image
     is partitioned into n cuboids, each of which has 5 features of data attached.
     
-    The data is downloaded by row from the cvs file and rearranges the shape to 128 x 5 tensor
+    The data is downloaded by row from the csv file and rearranges the shape to 128 x 5 tensor
     and passed this matrix and the corresponding label.
     """
     def __init__(self, csv_file_dir: str, n: int, length: int) -> None:

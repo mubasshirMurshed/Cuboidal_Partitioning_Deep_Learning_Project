@@ -8,7 +8,30 @@ from utils.utilities import adjacent
 
 
 class MNISTGraphDataset(InMemoryDataset):
+    """
+    In memory dataset class that stores the dataset in a .pt file under
+    root/processed.
+
+    The class will ignore information if it detects that the .pt file is already
+    created by specifying its name in the processed_file_names attribute.
+    """
     def __init__(self, root: str, filename: str, transform=None, pre_transform=None, length=None) -> None:
+        """
+        Saves attributes and runs super init to do processing and loading of the data in
+        self.data.
+
+        Args:
+        - root: str
+            - The string path to the root folder where the data files are
+        - filename: str
+            - The filename of the data file in the root folder to process
+        - transform:
+            - Transforms applied to the data whilst obtaining the data via get()
+        - pre_transform:
+            - Transforms applied to the data when processing and saving
+        - length:
+            - Length of dataset to consider
+        """
         self.length = length
         self.filename = filename
         self.file_root = f"{root}/{filename}.csv" 
@@ -18,15 +41,29 @@ class MNISTGraphDataset(InMemoryDataset):
 
     @property
     def raw_file_names(self):
+        """
+        List of the raw file names to process and apply transforms. In this case
+        our data is already given as csv files.
+        """
         return []
 
 
     @property
     def processed_file_names(self):
+        """
+        The name of the file which has the processed and saved data.
+        """
         return [f'{self.filename}.pt']
 
 
     def process(self):
+        """
+        Reads in the data from the given filename and loads it all in an array of Data objects
+        which is then collated to save easy in a .pt file.
+
+        This features data extraction from thr csv file,, normalization of the values, and the creation
+        of the Data object for each image, including its feature matrix, adjacency matrix and label.
+        """
         # Give UI information
         print("Loading in dataset in memory...")
 
@@ -91,12 +128,14 @@ class MNISTGraphDataset(InMemoryDataset):
             # Save tensors in Data object and return
             data_list[i] = Data(x=x[:, :3], y=lbl, edge_index=edges)
         
+        # Apply filters + transforms
         if self.pre_filter is not None:
             data_list = [data for data in data_list if self.pre_filter(data)]
 
         if self.pre_transform is not None:
             data_list = [self.pre_transform(data) for data in data_list]
         
+        # Collate data into one massive Data object and save its state
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
         

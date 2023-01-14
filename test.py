@@ -1,11 +1,8 @@
-import pandas as pd
-import torch
+# %% Imports
+from dataModules.mnistGraphDataModule import MNISTGraphDataModule
 
-# Read in data file and save attributes
-data = pd.read_csv("data/mnistNew/mnistTest128.csv", nrows=5)
+# %% Run data module
+dm = MNISTGraphDataModule(10, [100, 100])
+dm.setup()
 
-# Fill in self.dataset with the appropriate reshapes of the data
-dataset = [0]*len(data)
-
-x = torch.zeros(data.values[2][0], 5)
-print(x.shape)
+# %%

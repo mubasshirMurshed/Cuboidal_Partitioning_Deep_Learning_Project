@@ -6,23 +6,19 @@ from typing import List
 
 class MNISTGraphDataModule(DataModule):
     """
-    A data module for the cuboidal sparse dataset
+    A data module for the cuboidal graph dataset
     """
-    def __init__(self, train_dir: str, val_dir: str, batch_size: int, caps: List[int]):
+    def __init__(self, batch_size: int, caps: List[int]):
         """
         Save attributes.
 
         Args:
-        - train_dir: str
-            - Directory of training dataset
-        - val_dir: str
-            - Directory of validation dataset
         - batch_size: int
             - How many data samples per batch to be loaded
         - caps: List[int]
             - Length caps for training and validation datasets
         """
-        super().__init__(train_dir, val_dir, batch_size, DataLoader)
+        super().__init__(None, None, batch_size, DataLoader)
         self.caps = caps
     
 
