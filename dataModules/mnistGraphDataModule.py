@@ -1,5 +1,5 @@
 from dataModules.dataModule import DataModule
-from torch.utils.data import DataLoader
+from torch_geometric.loader import DataLoader
 from datasets import MNISTGraphDataset
 from typing import List
 
