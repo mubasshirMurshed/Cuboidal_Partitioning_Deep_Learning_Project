@@ -7,9 +7,10 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import List, Union, Dict, Callable
 import sys
 from utils.logger import Logger
-from utils.utilities import dirManager, count_trainable_parameters, count_untrainable_parameters
+from utils.utilities import dirManager, count_trainable_parameters, count_untrainable_parameters, getPythonFilePath
 import os
 from dataModules.dataModule import DataModule
+from shutil import copy
 
 
 class Trainer():
@@ -69,10 +70,25 @@ class Trainer():
         self.training_loader = self.data_module.train_dataloader()
         self.validation_loader = self.data_module.val_dataloader()
         
+        # Get device
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        print('-' * 60)
+        
+        # Check if model is to be loaded
+        if resume_from_ckpt is not None:
+            model.load_state_dict(torch.load(resume_from_ckpt))
+            print("Model successfully loaded from " + resume_from_ckpt)
+            print('-' * 60)
+
+
+    def fit(self):
+        """
+        Fits dataset onto model.
+        """
         # Get directory information
-        if allow_log:
+        if self.allow_log:
             # Create the directories required
-            self.log_dir, self.ckpt_dir = dirManager(model, data_module)
+            self.log_dir, self.ckpt_dir, self.file_dir = dirManager(self.model, self.data_module)
 
             # Set tensorboard writer
             self.logger = SummaryWriter(self.log_dir)
@@ -80,32 +96,23 @@ class Trainer():
             # Set stdout logger
             sys.stdout = Logger(self.log_dir, "/output.log")
 
-        # Get device
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-        # Check if model is to be loaded
-        if resume_from_ckpt is not None:
-            model.load_state_dict(torch.load(resume_from_ckpt))
-            print("Model successfully loaded from " + resume_from_ckpt)
-            print('-' * 20)
-
-
-    def fit(self):
-        """
-        Fits dataset onto model.
-        """
-        # Set up logging
-        if self.allow_log:
             # Log hyperparameters
             self.logger.add_hparams(hparam_dict=self.hparams, 
                 metric_dict={}, run_name=os.path.dirname(os.path.realpath("main.py")) + os.sep + self.log_dir
             )
 
+            # Save model, datamodule and main python files in log_dir
+            model_path = getPythonFilePath(self.model)
+            dm_path = getPythonFilePath(self.data_module)
+            copy(model_path, self.file_dir)
+            copy(dm_path, self.file_dir)
+            copy("main.py", self.file_dir)
+
+
         # Move model over to device
         self.model.to(device=self.device)
 
         # Print out what data module is being trained on
-        print('-' * 60)
         print(f"Data Module:\t\t{self.data_module.__class__.__name__}")
         print('-' * 60)
 
