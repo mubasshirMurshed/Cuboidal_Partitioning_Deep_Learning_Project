@@ -7,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import List, Union, Dict, Callable
 import sys
 from utils.logger import Logger
-from utils.dirManager import dirManager
+from utils.utilities import dirManager, count_trainable_parameters, count_untrainable_parameters
 import os
 from dataModules.dataModule import DataModule
 
@@ -71,8 +71,14 @@ class Trainer():
         
         # Get directory information
         if allow_log:
+            # Create the directories required
             self.log_dir, self.ckpt_dir = dirManager(model, data_module)
+
+            # Set tensorboard writer
             self.logger = SummaryWriter(self.log_dir)
+
+            # Set stdout logger
+            sys.stdout = Logger(self.log_dir, "/output.log")
 
         # Get device
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -90,9 +96,6 @@ class Trainer():
         """
         # Set up logging
         if self.allow_log:
-            # Set stdout logger
-            sys.stdout = Logger(self.log_dir, "/output.log")
-
             # Log hyperparameters
             self.logger.add_hparams(hparam_dict=self.hparams, 
                 metric_dict={}, run_name=os.path.dirname(os.path.realpath("main.py")) + os.sep + self.log_dir
@@ -101,10 +104,38 @@ class Trainer():
         # Move model over to device
         self.model.to(device=self.device)
 
+        # Print out what data module is being trained on
+        print('-' * 60)
+        print(f"Data Module:\t\t{self.data_module.__class__.__name__}")
+        print('-' * 60)
+
+        # Print ablation code
+        print(f"Ablation Code:\t\t{self.data_module.train_set.ablation_code}")
+        print('-' * 60)
+
+        # Print model name
+        print(f"Model:\t\t\t{self.model.__class__.__name__}")
+        print('-' * 60)
+
         # Print out hyperparameters
-        print("Hyperparamaters")
-        print(self.hparams)
-        print('-' * 20)
+        print(f"Hyperparameters:")
+        for k, v in self.hparams.items():
+            print(f"\t{k:15s} :  {v}")
+        print('-' * 60)
+
+        # Print out number of parameters of models
+        print(f"Model Summary:")
+        num_trainable_parameters = count_trainable_parameters(self.model)
+        num_untrainable_parameters = count_untrainable_parameters(self.model)
+        total_paramaters = num_trainable_parameters + num_untrainable_parameters
+        estimated_size_kb = total_paramaters / 250
+        model_summary = f"\
+\t{num_trainable_parameters/1000:6.2f} K \t Trainable params\n\
+\t{num_untrainable_parameters/1000:6.2f} K \t Non-trainable params\n\
+\t{total_paramaters/1000:6.2f} K \t Total params\n\
+\t{estimated_size_kb:6.2f} KB\t Estimated size of model"
+        print(model_summary)
+        print('-' * 60)
         
         # Determine training and validating functions
         if not self.is_graph_model:
@@ -126,7 +157,7 @@ class Trainer():
 
                 # Print metrics to console
                 print("Epoch: {}/{}, Training Loss: {:.3f}, Val Loss: {:.3f}, Val Accuracy: {:.2f}%".format(epoch+1, self.max_epochs, train_loss, val_loss, accuracy*100))
-                print('-' * 20)
+                print('-' * 60)
 
                 if self.allow_log:
                     # Tensorboard logging

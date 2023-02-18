@@ -1,13 +1,16 @@
-# %% Imports
-from dataModules.mnistGraphDataModule import MNISTGraphDataModule
-from dataModules.mnistSuperpixelDataModule import MNISTSuperpixelDataModule
-
-# %% Run data module
-dm = MNISTGraphDataModule(10, [5000, 1000])
-dm.setup()
+# %%
+from dataModules import *
+dm = MNIST_CTP_64_Pure_DataModule(batch_size=64)
 
 # %%
-dm = MNISTSuperpixelDataModule(10)
-dm.setup()
+# from datasets import *
+# ds = MNISTGraphDataset_V5(root="data/mnist64/",
+#                           name="mnistTrain",
+#                           mode="CP",
+#                           partition_limit=64,
+#                           # y_centre=False,
+#                         #   angle=False
+#                           )
 
 # %%
+print("wow")
