@@ -70,8 +70,9 @@ class Trainer():
         self.validation_loader = self.data_module.val_dataloader()
         
         # Get directory information
-        self.log_dir, self.ckpt_dir = dirManager(model, data_module)
-        self.logger = SummaryWriter(self.log_dir)
+        if allow_log:
+            self.log_dir, self.ckpt_dir = dirManager(model, data_module)
+            self.logger = SummaryWriter(self.log_dir)
 
         # Get device
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -283,7 +284,7 @@ class Trainer():
                 batch = batch.to(self.device) # put the data on the GPU
                 
                 # Forward
-                outputs = self.model(batch.x.float(), batch.edge_index, batch.batch) # passes image to the model, and gets an ouput which is the class probability prediction
+                outputs = self.model(batch.x, batch.edge_index, batch.batch) # passes image to the model, and gets an ouput which is the class probability prediction
 
                 # Calculate metrics
                 val_loss = self.loss_fn(outputs, batch.y) # calculates val_loss from model predictions and true labels
