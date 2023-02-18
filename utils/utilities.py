@@ -1,23 +1,40 @@
-from torch import Tensor
+import torch.nn as nn
+from datetime import datetime
+from os import makedirs
+from dataModules.dataModule import DataModule
 
 
-def adjacent(c1: Tensor, c2: Tensor) -> bool:
+def dirManager(model: nn.Module, data_module: DataModule):
     """
-    A function that takes two cuboids with five features each:
-        1) x_centre
-        2) y_centre
-        3) colour
-        4) width
-        5) height
-    and determines whether the two cuboids are adjacent in x-y
-    cartesian space.
+    Use model information to create the specific directories for logging and checkpoints
+    be stored in.
 
     Args:
-    - c1: Tensor
-        - A tensor of shape (5)
-    - c2: Tensor
-        - A tensor of shape (5) 
+    - model: nn.Module
+        - The model being trained
     """
-    x_dist = abs(c1[0] - c2[0])
-    y_dist = abs(c1[1] - c2[1])
-    return (x_dist <= (c1[3] + c2[3])/2) and (y_dist <= (c1[4] + c2[4])/2)
+    # Get name of the model and data module class
+    modelName = model._get_name()
+    dataModuleName = data_module.__class__.__name__
+    ablationCode = data_module.train_set.ablation_code
+
+    # Get current time
+    d = datetime.now()
+    dateString = f"{d.year:4d}-{d.month:02d}-{d.day:02d}__{d.hour:02d}-{d.minute:02d}-{d.second:02d}"
+
+    # Create Run ID and directory paths
+    runID =  'Run_ID__' + dateString
+    log_dir = f"saved/{dataModuleName}/{ablationCode}/{modelName}/{runID}"
+    ckpt_dir = log_dir + "/checkpoints"
+
+    # Create directories if they do not exist
+    makedirs(ckpt_dir)
+    return log_dir, ckpt_dir
+
+
+def count_trainable_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+def count_untrainable_parameters(model):
+    return sum(p.numel() for p in model.parameters() if not p.requires_grad)
