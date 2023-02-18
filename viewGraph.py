@@ -1,23 +1,20 @@
 # %% Imports
 import matplotlib.pyplot as plt
-from datasets import MNISTGraphDataset
+from datasets import MNISTGraphDataset_V4, MNISTGraphDataset_V6
 from torchvision.datasets import MNIST
 
 # %% Dataset
 ds1 = MNIST(r"data\mnistPytorch", train=False)
-ds2 = MNISTGraphDataset(root="data/mnistNew", filename="mnistTest128", length=10)
+ds2 = MNISTGraphDataset_V6(root="data/mnist64", mode="CTP", partition_limit=64, length=None, name="mnistTest", x_centre=True, y_centre=True, num_pixels=True, angle=True)
 
 # %% Plot graph using feature values of x-y pos and colour
-idx = 1
-
+idx = 19
 fig, axes = plt.subplots(nrows=1, ncols=2)
 ax1 = axes[0]
 ax2 = axes[1]
-i = 0
-# for i, (ax1, ax2) in enumerate(axes):
-img = ds1[idx + i][0]
-data = ds2[idx + i].x
-values, _ = ds2[idx + i].edge_index.t().sort()
+img = ds1[idx][0]
+data = ds2[idx].x
+values, _ = ds2[idx].edge_index.t().sort()
 edges = values.unique(dim=0)
 
 ax1.imshow(img, cmap="gray")
@@ -31,8 +28,11 @@ ax2.yaxis.set_ticks(range(27, -1, -3))
 
 # Add nodes
 for i in range(len(data)):
+    # ax2.add_patch(plt.Circle((data[i][0]*28, data[i][1]*28), 0.5, facecolor=str(data[i][2].item()), edgecolor="white", linewidth=0.4))
     # ax2.add_patch(plt.Circle((data[i][0]*28, data[i][1]*28), 0.25, facecolor=str(data[i][2].item()), edgecolor="white", linewidth=0.2))
-    ax2.add_patch(plt.Circle((data[i][0]*28, data[i][1]*28), 0.25, facecolor="red", edgecolor="white", linewidth=0.2))
+    # ax2.add_patch(plt.Circle((data[i][0]*28, data[i][1]*28), 0.25, facecolor="red", edgecolor="white", linewidth=0.2))
+    # ax2.add_patch(plt.Circle((data[i][0]*28, data[i][1]*28), 0.05*data[i][3]*28*data[i][4]*28, facecolor=str(data[i][2].item()), edgecolor="white", linewidth=0.5))
+    ax2.add_patch(plt.Circle((data[i][0]*28, data[i][1]*28), 0.25, facecolor="red", edgecolor="white", linewidth=0.5))
 
 # Add edges
 for i in range(len(edges)):
@@ -52,6 +52,7 @@ for i in range(len(edges)):
     colour = (col_src + col_dst)/2
 
     # Plot line from (x_src, y_src) to (x_dst, y_dst)
+    # ax2.plot([x_src, x_dst], [y_src, y_dst], color=str(colour.item()), linestyle='-', linewidth=1)
     # ax2.plot([x_src, x_dst], [y_src, y_dst], color=str(colour.item()), linestyle='-', linewidth=0.5)
     ax2.plot([x_src, x_dst], [y_src, y_dst], color="red", linestyle='-', linewidth=0.5)
 

@@ -5,12 +5,12 @@ from torchvision.datasets import MNIST
 import numpy as np
 
 # %% Set up dataset
-data_root = r"data\mnistCuboidalData\mnistTest64.csv"
+data_root = r"data\archive\mnistTest64.csv"
 ds_cuboid = MNISTSparseDataset(csv_file_dir=data_root, n=64, length=100)
 ds_normal = MNIST(root=r"data\mnistPytorch", train=False)
 
 # %% Images to display
-idx = 0    #92
+idx = 6    #92
 img = ds_normal[idx][0]         # PIL image of actual MNIST digit
 cuboidal = ds_cuboid[idx][0]    # Cuboidal data of image
 
