@@ -1,23 +1,21 @@
 import torch
 from torch import nn
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GATv2Conv
 import torch.nn.functional as F
 from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
 
-embedding_size = 64
-class MNIST_GCN(torch.nn.Module):
+class MNIST_GAT(torch.nn.Module):
     def __init__(self, num_features: int):
         # Init parent
-        super(MNIST_GCN, self).__init__()
+        super(MNIST_GAT, self).__init__()
 
         # GCN layers
-        self.initial_conv = GCNConv(num_features, 64)
-        self.conv1 = GCNConv(64, 64)
-        self.conv2 = GCNConv(64, 64)
-        self.conv3 = GCNConv(64, 32)
+        self.initial_conv = GATv2Conv(in_channels=num_features, out_channels=64, heads=3)
+        self.conv1 = GATv2Conv(in_channels=64*3, out_channels=64, heads=2)
+        self.conv2 = GATv2Conv(in_channels=64*2, out_channels=64, heads=2, concat=False)
 
         # Output layer
-        self.out = nn.Linear(32*2, 10)
+        self.out = nn.Linear(64*2, 10)
 
     def forward(self, x, edge_index, batch_index):
         # First Conv layer
@@ -28,8 +26,6 @@ class MNIST_GCN(torch.nn.Module):
         hidden = self.conv1(hidden, edge_index)
         hidden = F.relu(hidden)
         hidden = self.conv2(hidden, edge_index)
-        hidden = F.relu(hidden)
-        hidden = self.conv3(hidden, edge_index)
         hidden = F.relu(hidden)
 
         # Global Pooling (stack different aggregations)
