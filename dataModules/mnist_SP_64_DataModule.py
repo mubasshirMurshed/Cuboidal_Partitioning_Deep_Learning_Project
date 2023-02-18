@@ -4,23 +4,20 @@ from datasets import MNISTGraphDataset_V4
 from typing import List, Union
 
 
-class MNISTGraphDataModule(DataModule):
+class MNIST_SP_64_DataModule(DataModule):
     """
     A data module for the cuboidal graph dataset
     """
-    def __init__(self, batch_size: int, mode: str, caps: Union[List[int], None]=None):
+    def __init__(self, batch_size: int, caps: Union[List[int], None]=None):
         """
         Save attributes.
 
         Args:
         - batch_size: int
             - How many data samples per batch to be loaded
-        - mode: str
-            - CP or SP
         - caps: List[int]
             - Length caps for training and validation datasets
         """
-        self.mode = mode
         if caps is not None:
             self.caps = caps
         else:
@@ -32,6 +29,6 @@ class MNISTGraphDataModule(DataModule):
         """
         Instantiate datasets for training and validation.
         """
-        self.train_set = MNISTGraphDataset_V4(root="data/mnistExperiment", mode=self.mode, partition_limit=128, length=None, train=True)
+        self.train_set = MNISTGraphDataset_V4(root="data/mnistExperiment", mode="SP", partition_limit=64, length=None, name="mnistTrain")
 
-        self.val_set = MNISTGraphDataset_V4(root="data/mnistExperiment", mode=self.mode, partition_limit=128, length=None, train=False)
+        self.val_set = MNISTGraphDataset_V4(root="data/mnistExperiment", mode="SP", partition_limit=64, length=None, name="mnistTest")

@@ -24,9 +24,9 @@ class MNISTSparseDataModule(DataModule):
         - caps: List[int]
             - Length caps for training and validation datasets
         """
-        super().__init__(train_dir, val_dir, batch_size, DataLoader)
         self.caps = caps
         self.nCuboids = nCuboids
+        super().__init__(train_dir, val_dir, batch_size, DataLoader)
     
 
     def setup(self):
