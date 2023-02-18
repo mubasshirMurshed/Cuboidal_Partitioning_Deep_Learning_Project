@@ -11,7 +11,7 @@ class MNIST_Linear_2(nn.Module):
         """
         Initialising a single linear layer.
         """
-        super(MNIST_Linear_2, self).__init__()
+        super().__init__()
         self.flatten = nn.Flatten()
         self.linear1 = nn.Linear(16, 10)
         

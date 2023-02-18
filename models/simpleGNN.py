@@ -8,7 +8,7 @@ embedding_size = 64
 class MNIST_GCN(torch.nn.Module):
     def __init__(self, num_features: int):
         # Init parent
-        super(MNIST_GCN, self).__init__()
+        super().__init__()
 
         # GCN layers
         self.initial_conv = GCNConv(num_features, 64)

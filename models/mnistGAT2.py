@@ -7,7 +7,7 @@ from torch_geometric.nn.aggr import MeanAggregation, StdAggregation, MaxAggregat
 class MNIST_GAT2(torch.nn.Module):
     def __init__(self, num_features: int):
         # Init parent
-        super(MNIST_GAT2, self).__init__()
+        super().__init__()
 
         # GCN layers
         self.initial_conv = GATv2Conv(in_channels=num_features, out_channels=64, heads=3)

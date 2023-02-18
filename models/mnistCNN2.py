@@ -13,7 +13,7 @@ class MNIST_CNN_2(nn.Module):
         """
         Defines the layers of the neural network
         """
-        super(MNIST_CNN_2, self).__init__()
+        super().__init__()
         self.conv1 = nn.Sequential(         
             nn.Conv2d(in_channels=1, out_channels=32, kernel_size=2, stride=1, padding=0),                              
             nn.ReLU(),

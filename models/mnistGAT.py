@@ -7,7 +7,7 @@ from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
 class MNIST_GAT(torch.nn.Module):
     def __init__(self, num_features: int):
         # Init parent
-        super(MNIST_GAT, self).__init__()
+        super().__init__()
 
         # GCN layers
         self.initial_conv = GATv2Conv(in_channels=num_features, out_channels=64, heads=3)

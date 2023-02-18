@@ -97,7 +97,7 @@ class MNISTGraphDataset_V6(InMemoryDataset):
             self.ablation_code += 'H'
 
         # Run inherited processes to create dataset .pt files
-        super(MNISTGraphDataset_V6, self).__init__(root)
+        super().__init__(root)
 
         # Load dataset as self.data
         self.data, self.slices = torch.load(self.processed_paths[0])
