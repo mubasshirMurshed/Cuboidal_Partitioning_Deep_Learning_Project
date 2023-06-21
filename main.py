@@ -43,7 +43,7 @@ hparams["optimizer"] = optimizer.__class__.__name__
 hparams["loss_fn"] = loss_fn.__class__.__name__
 
 # Define flags
-allow_log = False
+allow_log = True
 save_every_n_epoch = 1
 resume_from_ckpt= None
 is_graph_model = True

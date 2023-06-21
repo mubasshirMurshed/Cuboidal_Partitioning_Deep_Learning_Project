@@ -10,7 +10,7 @@ ds_cuboid = MNISTSparseDataset(csv_file_dir=data_root, n=64, length=100)
 ds_normal = MNIST(root=r"data\mnistPytorch", train=False)
 
 # %% Images to display
-idx = 6    #92
+idx = 3    #92
 img = ds_normal[idx][0]         # PIL image of actual MNIST digit
 cuboidal = ds_cuboid[idx][0]    # Cuboidal data of image
 
