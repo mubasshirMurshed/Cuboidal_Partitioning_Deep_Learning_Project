@@ -2,6 +2,7 @@ import torch.nn as nn
 from datetime import datetime
 from os import makedirs
 from dataModules.dataModule import DataModule
+from typing import Callable
 
 
 def dirManager(model: nn.Module, data_module: DataModule):
@@ -47,3 +48,28 @@ def count_untrainable_parameters(model):
 
 def getPythonFilePath(obj):
     return obj.__module__.replace(".", "/") + ".py"
+
+def generateConfusionMatrix(self, validate_fn: Callable):
+        """
+        Generates a confusion matrix on the current model perfomance
+        """
+        # Create n x n empty matrix where dataset has n categories
+        matrix = [0]*self.num_classes
+        for i in range(self.num_classes):
+            matrix[i] = [0]*self.num_classes
+
+        # Fill in confusion matrix
+        validate_fn(conMatrix=matrix)
+
+        # Print formatted table heading
+        for i in range(self.num_classes):
+            print(f"{i:6d}", end="")
+        print("")
+
+        # Print table body
+        for i, row in enumerate(matrix):
+            print(f"{i}", end="")
+            categoryTotal = sum(row)
+            for elem in row:
+                print(f"{elem*100/categoryTotal:5.0f} ", end="")
+            print(f"{sum(row):7d}")

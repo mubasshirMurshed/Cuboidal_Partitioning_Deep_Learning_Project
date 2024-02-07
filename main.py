@@ -3,39 +3,28 @@ import torch
 from torch import nn
 from datasets import *
 from models import *
-from training import *
+from trainer import *
 from utils.logger import *
 from dataModules import *
+import torch_geometric
 
 # %% Seeding
-torch.manual_seed(42)
+seed = 42
+torch_geometric.seed_everything(seed)
 
 # %% Define hyperparameters
 hparams = {
-    "max_epochs" : 100,
+    "max_epochs" : 2,
     "learning_rate" : 0.001,
     "batch_size" : 64
 }
 
 # %% Create data module
-# data_module = MNISTCuboidalSparseDataModule(train_root, val_root, hparams["batch_size"], num_cuboids, [train_length, val_length])
-# data_module = MNISTDataModule("data/mnistPytorch", "data/mnistPytorch", hparams["batch_size"])
-# data_module = MNISTSuperpixelDataModule(hparams["batch_size"])
-# data_module = MNISTGraphDataModule(hparams["batch_size"], [5000, 1000])
-# data_module = MNIST_SP_128_DataModule(hparams["batch_size"])
-# data_module = MNIST_OR_16_Block_DataModule("data/mnistPytorch", "data/mnistPytorch", hparams["batch_size"])
-# data_module = MNIST_RP_16_DataModule(hparams["batch_size"])
-# data_module = MNIST_CP_64_Pure_DataModule(hparams["batch_size"])
-data_module = MNIST_CTP_64_Pure_DataModule(hparams["batch_size"])
+data_module = MNIST_CP_64_Pure_DataModule(hparams["batch_size"])
 
 # %% Instantiate model
 num_classes = 10
-# num_cuboids = 128
-# model = MNIST_Sparse(numCuboids=num_cuboids, numFeatures=5, numClasses=num_classes)
-# model = MNIST_CNN()
-model = MNIST_GAT(num_features=data_module.train_set.num_features)
-# model = MNIST_GAT2(num_features=data_module.train_set.num_features)
-# model = MNIST_CNN_2()
+model = MNIST_GAT2(num_features=data_module.train_set.num_features)
 
 loss_fn = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(params=model.parameters(), lr=hparams["learning_rate"])
@@ -43,7 +32,7 @@ hparams["optimizer"] = optimizer.__class__.__name__
 hparams["loss_fn"] = loss_fn.__class__.__name__
 
 # Define flags
-allow_log = True
+allow_log = False
 save_every_n_epoch = 1
 resume_from_ckpt= None
 is_graph_model = True

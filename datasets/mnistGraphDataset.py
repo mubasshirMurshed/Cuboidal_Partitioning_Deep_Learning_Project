@@ -8,6 +8,162 @@ from tqdm import tqdm
 from numpy import int64
 import os
 from typing import Optional, Union
+from transforms import CupidPartition
+from torchvision.datasets import MNIST
+from torch.utils.data import random_split
+
+
+class MNISTGraphDataset(InMemoryDataset):
+    """
+    In memory dataset class that stores the dataset in a .pt file under
+    root/processed.
+
+    The class will ignore information if it detects that the .pt file is already
+    created by specifying its name in the processed_file_names attribute.
+
+    Selection of which feature data to include can be done via flags. By default, every value is
+    included.
+    """
+    def __init__(self, root: Optional[str]=None,
+                       num_cuboids: Optional[int]=None,
+                       mode: Optional[str]=None, 
+                       train_val_test: int=0,
+                       train_length: int=50000,
+                       colour: bool=False,
+                       x_centre: bool=False,
+                       y_centre: bool=False,
+                       num_pixels: bool=False,
+                       angle: bool=False,
+                       width: bool=False,
+                       height: bool=False) -> None:
+        """
+        Saves attributes and runs super init to do processing and loading of the data in
+        self.data.
+
+        Args:
+        - root: str | None
+            - The string path to the root folder where the data files are
+        - name: str | None
+            - The group name of the file to find
+        - mode: str | None
+            - The type of dataset being loaded, CP (cuboidal partition) or SP
+              (superpixel partition). Other modes also exist such as RP (regular
+              partition).
+        - partition_limit: int | None
+            - The upper limit of number of segments allowed for each image
+        - colour: bool
+            - Whether to include colour data in each graph node
+        - x_centre: bool
+            - Whether to include x-centre data in each graph node
+        - y_centre: bool
+            - Whether to include y centre data in each graph node
+        - num_pixels: bool
+            - Whether to include number of pixels of a cuboid in its corresponding graph node
+        - angle: bool
+            - Whether to include the angle of the cuboid in its corresponding graph node
+        - width: bool
+            - Whether to include the width of the cuboid in its corresponding graph node
+        - height: bool
+            - Whether to include the height of the cuboid in its corresponding graph node
+        """
+        # Save attributes
+        self.num_cuboids = num_cuboids
+        self.root = root + "mnist" + self.num_cuboids + "/"         # The dataset processed files will be saved here
+        self.source_root = root + "mnistPytorch/"                   # The path to MNIST dataset provided by PyTorch
+        self.mode = mode
+        self.train_val_test = train_val_test
+        self.train_length = train_length
+        self.val_length = 60000 - self.train_length
+        self.test_length = 10000
+        
+        # Ablation
+        self.colour = colour
+        self.x_centre = x_centre
+        self.y_centre = y_centre
+        self.num_pixels = num_pixels
+        self.angle = angle
+        self.width = width
+        self.height = height
+
+        # Create ablation code string
+        self.ablation_code = ""
+        if self.x_centre:
+            self.ablation_code += 'X'
+        if self.y_centre:
+            self.ablation_code += 'Y'
+        if self.colour:
+            self.ablation_code += 'C'
+        if self.num_pixels:
+            self.ablation_code += 'N'
+        if self.angle:
+            self.ablation_code += 'A'
+        if self.width:
+            self.ablation_code += 'W'
+        if self.height:
+            self.ablation_code += 'H'
+
+        super().__init__(root)
+
+        # Load dataset as self.data
+        self.data, self.slices = torch.load(self.processed_paths[self.train_val_test])
+
+
+    @property
+    def processed_file_names(self):
+        """
+        The name of the file which has the processed and saved data.
+        """
+        return [f'mnistTrain-{self.mode}-{self.num_cuboids}-{self.train_length}-{self.ablation_code}.pt', 
+                f'mnistValidation-{self.mode}-{self.num_cuboids}-{self.val_length}-{self.ablation_code}.pt',
+                f'mnistTest-{self.mode}-{self.num_cuboids}-{self.test_length}-{self.ablation_code}.pt']
+
+
+    def process(self):
+        """
+        Reads in the data from the given filename and loads it all in an array of Data objects
+        which is then collated to save easy in a .pt file.
+
+        This features data extraction from the csv file,, normalization of the values, and the creation
+        of the Data object for each image, including its feature matrix, adjacency matrix and label.
+        """
+        # Give UI information
+        print("Loading in dataset in memory...")
+
+        # MNIST Data Source with CuPID
+        self.dataset = MNIST(root=self.source_root, train=self.train_val_test in [0, 1], transform=CupidPartition(self.num_cuboids), download=True)
+
+        # Deal with train and validation split
+        if self.train_val_test in [0, 1]:
+            generator = torch.Generator().manual_seed(42)
+            self.train, self.val = random_split(self.dataset, [self.train_length, self.val_length], generator=generator)
+            if self.train_val_test == 0:
+                self.dataset = self.train
+            else:
+                self.dataset = self.val
+
+        # Make space for data objects from this file
+        dataset = [0]*(len(self.dataset))
+
+        # Convert each CuPID image into a graph
+        for i in tqdm(range(len(self.dataset)), leave=False):
+            # Current CuPID data
+            cupid_data, label = self.dataset[i]
+
+            # TODO: Calculate all required info from ablation code desired
+
+
+            # Create Data object
+            # dataset[i] = Data(x=x, y=label, edge_index=edge_index)
+
+        # Collate data into one massive Data object and save its state
+        data, slices = self.collate(dataset)
+        torch.save((data, slices), self.processed_paths[self.train_val_test])
+
+        # Print UI Information
+        print(f"Dataset loaded!")
+        
+        # Print separator lines
+        print('-' * 20)
 
 
 class MNISTGraphDataset_V6(InMemoryDataset):

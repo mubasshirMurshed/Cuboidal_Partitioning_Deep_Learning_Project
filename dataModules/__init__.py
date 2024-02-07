@@ -15,3 +15,4 @@ from dataModules.mnist_CP_32_Pure_DataModule import *
 from dataModules.mnist_CP_16_Pure_DataModule import *
 from dataModules.mnist_CP_784_Pure_DataModule import *
 from dataModules.mnist_CTP_64_Pure_DataModule import *
+from dataModules.mnist_CP_DataModule import *

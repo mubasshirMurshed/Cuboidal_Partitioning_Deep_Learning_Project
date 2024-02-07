@@ -1,10 +1,10 @@
 from dataModules.dataModule import DataModule
 from torch_geometric.loader import DataLoader
-from datasets import MNISTGraphDataset_V6
+from datasets import MNISTGraphDataset
 from typing import List, Union
 
 
-class MNIST_CP_784_Pure_DataModule(DataModule):
+class MNIST_CP_DataModule(DataModule):
     """
     A data module for the cuboidal graph dataset that has a pure cap of 64 across all images
     """
@@ -29,7 +29,7 @@ class MNIST_CP_784_Pure_DataModule(DataModule):
         """
         Instantiate datasets for training and validation.
         """
-        self.train_set = MNISTGraphDataset_V6(root="data/mnist784/",
+        self.train_set = MNISTGraphDataset(root="data/",
                                               name="mnistTrain",
                                               mode="CP",
                                               partition_limit=784,
@@ -40,7 +40,7 @@ class MNIST_CP_784_Pure_DataModule(DataModule):
                                               angle=True
                                              )
 
-        self.val_set = MNISTGraphDataset_V6(root="data/mnist784/",
+        self.val_set = MNISTGraphDataset(root="data/mnist784/",
                                             name="mnistTest",
                                             mode="CP",
                                             partition_limit=784,

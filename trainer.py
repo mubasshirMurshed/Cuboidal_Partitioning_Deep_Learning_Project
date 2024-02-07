@@ -11,6 +11,8 @@ from utils.utilities import dirManager, count_trainable_parameters, count_untrai
 import os
 from dataModules.dataModule import DataModule
 from shutil import copy
+from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionMatrix
+from torchmetrics import MetricCollection
 
 
 class Trainer():
@@ -69,16 +71,20 @@ class Trainer():
         self.data_module = data_module
         self.training_loader = self.data_module.train_dataloader()
         self.validation_loader = self.data_module.val_dataloader()
-        
+
         # Get device
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        print('-' * 60)
+
+        # Create and setup metric trackers
+        self.train_accuracy = MulticlassAccuracy(self.num_classes).to(self.device)
+        self.val_accuracy = MulticlassAccuracy(self.num_classes).to(self.device)
+        self.final_metrics = MetricCollection( {
+            "Top 2 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=2),
+            "Top 3 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=3),
+            "Confusion Matrix" : MulticlassConfusionMatrix(self.num_classes)
+        }).to(self.device)
         
-        # Check if model is to be loaded
-        if resume_from_ckpt is not None:
-            model.load_state_dict(torch.load(resume_from_ckpt))
-            print("Model successfully loaded from " + resume_from_ckpt)
-            print('-' * 60)
+        print('-' * 80)
 
 
     def fit(self):
@@ -108,27 +114,32 @@ class Trainer():
             copy(dm_path, self.file_dir)
             copy("main.py", self.file_dir)
 
+        # Check if model is to be loaded
+        if self.resume_from_ckpt is not None:
+            self.model.load_state_dict(torch.load(self.resume_from_ckpt))
+            print("Model successfully loaded from " + self.resume_from_ckpt)
+            print('-' * 80)
 
         # Move model over to device
-        self.model.to(device=self.device)
+        self.model = self.model.to(device=self.device)
 
         # Print out what data module is being trained on
         print(f"Data Module:\t\t{self.data_module.__class__.__name__}")
-        print('-' * 60)
+        print('-' * 80)
 
         # Print ablation code
         print(f"Ablation Code:\t\t{self.data_module.train_set.ablation_code}")
-        print('-' * 60)
+        print('-' * 80)
 
         # Print model name
         print(f"Model:\t\t\t{self.model.__class__.__name__}")
-        print('-' * 60)
+        print('-' * 80)
 
         # Print out hyperparameters
         print(f"Hyperparameters:")
         for k, v in self.hparams.items():
             print(f"\t{k:15s} :  {v}")
-        print('-' * 60)
+        print('-' * 80)
 
         # Print out number of parameters of models
         print(f"Model Summary:")
@@ -142,7 +153,7 @@ class Trainer():
 \t{total_paramaters/1000:6.2f} K \t Total params\n\
 \t{estimated_size_kb:6.2f} KB\t Estimated size of model"
         print(model_summary)
-        print('-' * 60)
+        print('-' * 80)
         
         # Determine training and validating functions
         if not self.is_graph_model:
@@ -160,21 +171,28 @@ class Trainer():
                 train_loss = train_fn()
 
                 # Run validation cycle
-                val_loss, accuracy = validate_fn()
+                val_loss = validate_fn()
 
                 # Print metrics to console
-                print("Epoch: {}/{}, Training Loss: {:.3f}, Val Loss: {:.3f}, Val Accuracy: {:.2f}%".format(epoch+1, self.max_epochs, train_loss, val_loss, accuracy*100))
-                print('-' * 60)
+                train_acc = self.train_accuracy.compute()
+                val_acc = self.val_accuracy.compute()
+                print("Epoch: {}/{}, Train Loss: {:.3f}, Train Acc: {:.2%}, Val Loss: {:.3f}, Val Accuracy: {:.2%}".format(epoch+1, self.max_epochs, train_loss, train_acc.item(), val_loss, val_acc.item()))
+                print('-' * 80)
+
+                # Reset metrics
+                self.train_accuracy.reset()
+                self.val_accuracy.reset()
 
                 if self.allow_log:
                     # Tensorboard logging
                     self.logger.add_scalar("train_loss", train_loss, epoch)
+                    self.logger.add_scalar("train_acc", train_acc, epoch)
                     self.logger.add_scalar("val_loss", val_loss, epoch)
-                    self.logger.add_scalar("val_acc", accuracy, epoch)
+                    self.logger.add_scalar("val_acc", val_acc, epoch)
 
                     # Saving checkpoints
                     if ((epoch+1) % self.save_every_n_epoch == 0):
-                        filename = f"/epoch={epoch+1}-val_loss={val_loss:.4f}-val_acc={accuracy:.4f}.pt"
+                        filename = f"/epoch={epoch+1}-val_loss={val_loss:.4f}-val_acc={val_acc:.4f}.pt"
                         torch.save(self.model.state_dict(), self.ckpt_dir + filename)
             
             print("Finished Training")
@@ -184,11 +202,23 @@ class Trainer():
         
         # Print confusion matrix
         if self.print_conf_matrix:
-            self.generateConfusionMatrix(validate_fn=validate_fn)
-        
+            validate_fn(final_metrics=True)
+            extra_metrics = self.final_metrics.compute()
+            self.final_metrics.reset()
+            val_acc = self.val_accuracy.compute()
+            self.val_accuracy.reset()
+            print('-' * 80)
+            print(f"Top 1 Accuracy: {val_acc:.2%}")
+            print(f"Top 2 Accuracy: {extra_metrics['Top 2 Accuracy']:.2%}")
+            print(f"Top 3 Accuracy: {extra_metrics['Top 3 Accuracy']:.2%}")
+            print('-' * 80)
+            print(extra_metrics["Confusion Matrix"].to("cpu").numpy())
+            print('-' * 80)
+
         if self.allow_log:
             # Save current model + output log
             torch.save(self.model.state_dict(), self.ckpt_dir + "/last.pt")
+            print("Logs saved to {}".format(self.ckpt_dir))
 
             # Close logging
             self.logger.close()
@@ -204,32 +234,32 @@ class Trainer():
         for i, data in enumerate(tqdm(self.training_loader, leave=False), 0):
             # Get batch of images and labels
             inputs, labels = data
-            inputs, labels = inputs.to(self.device), labels.to(self.device) # puts the data on the GPU
+            inputs, labels = inputs.to(self.device), labels.to(self.device)
 
             # Forward                                         
-            self.optimizer.zero_grad() # clear the gradients in model parameters
-            outputs = self.model(inputs) # forward pass and get predictions
+            self.optimizer.zero_grad()
+            outputs = self.model(inputs)
 
             # Backward
-            loss = self.loss_fn(outputs, labels) # calculate loss
-            loss.backward() # calculates gradient w.r.t to loss for all parameters in model that have requires_grad=True
+            loss = self.loss_fn(outputs, labels)
+            running_loss += loss.item()
+            loss.backward()
+
+            # Update accuracies
+            self.train_accuracy.update(outputs, labels)
             
             # Update weights
-            self.optimizer.step() # iterate over all parameters in the model with requires_grad=True and update their weights.
+            self.optimizer.step()
 
-            running_loss += loss.item() # sum total loss in current epoch for print later
-
-        return running_loss/len(self.training_loader) # returns the average training loss for the epoch
+        return running_loss/len(self.training_loader)
 
 
-    def validation(self, conMatrix: Union[List[List[int]], None] = None):
+    def validation(self, final_metrics: bool=False):
         """
         Performs one validation loop over the validation data loader.
         """
         self.model.eval() # puts the model in validation mode
         running_loss = 0
-        total = 0
-        correct = 0
         
         with torch.no_grad(): # save memory by not saving gradients which we don't need 
             for images, labels in tqdm(self.validation_loader, leave=False):
@@ -237,47 +267,18 @@ class Trainer():
                 images, labels = images.to(self.device), labels.to(self.device) # put the data on the GPU
                 
                 # Forward
-                outputs = self.model(images) # passes image to the model, and gets an ouput which is the class probability prediction
+                outputs = self.model(images)
 
                 # Calculate metrics
-                val_loss = self.loss_fn(outputs, labels) # calculates val_loss from model predictions and true labels
+                val_loss = self.loss_fn(outputs, labels)
                 running_loss += val_loss.item()
-                _, predicted = torch.max(outputs, 1) # turns class probability predictions to class labels
-                total += labels.size(0) # sums the number of predictions
-                correct += (predicted == labels).sum().item() # sums the number of correct predictions
         
-                # Update confusion matrix
-                if conMatrix is not None:
-                    for i in range(len(labels)):
-                        conMatrix[labels[i]][predicted[i]] += 1
+                # Update trackers
+                self.val_accuracy.update(outputs, labels)
+                if final_metrics:
+                    self.final_metrics.update(outputs, labels)
 
-            return running_loss/len(self.validation_loader), correct/total # return average validation loss, accuracy
-
-
-    def generateConfusionMatrix(self, validate_fn: Callable):
-        """
-        Generates a confusion matrix on the current model perfomance
-        """
-        # Create n x n empty matrix where dataset has n categories
-        matrix = [0]*self.num_classes
-        for i in range(self.num_classes):
-            matrix[i] = [0]*self.num_classes
-
-        # Fill in confusion matrix
-        validate_fn(conMatrix=matrix)
-
-        # Print formatted table heading
-        for i in range(self.num_classes):
-            print(f"{i:6d}", end="")
-        print("")
-
-        # Print table body
-        for i, row in enumerate(matrix):
-            print(f"{i}", end="")
-            categoryTotal = sum(row)
-            for elem in row:
-                print(f"{elem*100/categoryTotal:5.0f} ", end="")
-            print(f"{sum(row):7d}")
+            return running_loss/len(self.validation_loader)
 
 
     def train_G(self):
@@ -297,24 +298,24 @@ class Trainer():
 
             # Backward
             loss = self.loss_fn(outputs, batch.y) # calculate loss
+            running_loss += loss.item() # sum total loss in current epoch for print later
             loss.backward() # calculates gradient w.r.t to loss for all parameters in model that have requires_grad=True
+
+            # Update accuracies
+            self.train_accuracy.update(outputs, batch.y)
             
             # Update weights
             self.optimizer.step() # iterate over all parameters in the model with requires_grad=True and update their weights.
 
-            running_loss += loss.item() # sum total loss in current epoch for print later
-
         return running_loss/len(self.training_loader) # returns the average training loss for the epoch
 
 
-    def validation_G(self, conMatrix: Union[List[List[int]], None] = None):
+    def validation_G(self, final_metrics: bool=False):
         """
         Performs one validation loop over the validation data loader for graph neural network training.
         """
         self.model.eval() # puts the model in validation mode
         running_loss = 0
-        total = 0
-        correct = 0
         
         with torch.no_grad(): # save memory by not saving gradients which we don't need 
             for batch in tqdm(self.validation_loader, leave=False):
@@ -327,13 +328,10 @@ class Trainer():
                 # Calculate metrics
                 val_loss = self.loss_fn(outputs, batch.y) # calculates val_loss from model predictions and true labels
                 running_loss += val_loss.item()
-                _, predicted = torch.max(outputs, 1) # turns class probability predictions to class labels
-                total += batch.y.size(0) # sums the number of predictions
-                correct += (predicted == batch.y).sum().item() # sums the number of correct predictions
 
-                # Update confusion matrix
-                if conMatrix is not None:
-                    for i in range(len(batch.y)):
-                        conMatrix[batch.y[i]][predicted[i]] += 1
+                # Update trackers
+                self.val_accuracy.update(outputs, batch.y)
+                if final_metrics:
+                    self.final_metrics.update(outputs, batch.y)
 
-            return running_loss/len(self.validation_loader), correct/total # return average validation loss, accuracy
+            return running_loss/len(self.validation_loader) # return average validation loss

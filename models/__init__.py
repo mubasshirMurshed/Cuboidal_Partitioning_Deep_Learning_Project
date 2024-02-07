@@ -8,3 +8,4 @@ from models.mnistLinear2 import *
 from models.simpleGNN import *
 from models.mnistGAT import *
 from models.mnistGAT2 import *
+from models.mnistGAT3 import *

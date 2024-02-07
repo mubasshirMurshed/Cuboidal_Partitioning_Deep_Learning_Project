@@ -104,6 +104,8 @@ ENV/
 data/
 input/
 saved/
+literature review/
+CuPID.py
 
 # editor, os cache directory
 .vscode/

@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from datasets import *
 from models import *
-from training import *
+from trainer import *
 from utils.logger import *
 from dataModules import *
 
