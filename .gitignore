@@ -105,7 +105,8 @@ data/
 input/
 saved/
 literature review/
-CuPID.py
+cupid.py
+test.ipynb
 
 # editor, os cache directory
 .vscode/
