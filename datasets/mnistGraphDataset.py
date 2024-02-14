@@ -137,7 +137,7 @@ class MNISTGraphDataset_Auto(InMemoryDataset):
         if self.split in ["Train", "Validation"]:
             generator = torch.Generator().manual_seed(42)
             self.train, self.val = random_split(self.dataset, [self.train_length, self.val_length], generator=generator)
-            if self.train_val_test == 0:
+            if self.split == "Train":
                 self.dataset = self.train
             else:
                 self.dataset = self.val
