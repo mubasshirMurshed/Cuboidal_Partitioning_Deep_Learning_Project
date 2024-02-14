@@ -52,16 +52,18 @@ class rawMNISTDataset:
         if os.path.isfile(filepath):
             if verbose: print(f"{split} dataset already exists.")
             return
+        
+        # Create multiprocessing pool
+        pool = mp.Pool(30)
 
-        if verbose: print(f"Generating {split} dataset files...")
+        if verbose: print(f"Generating {split} dataset files...")\
         # Iterate over every chunk of data
         for i in tqdm(range(math.ceil(len(dataset) / self.max_entries_per_file)), position=0, leave=False, disable=not verbose):
             # For each image in the chunk, pre allocate space for data collection
             start = i*self.max_entries_per_file
             end = min((i+1)*self.max_entries_per_file, len(dataset))
 
-            # Create multiprocessing pool
-            pool = mp.Pool(30)
+            # Obtain the relevant CuPID data of all images in this chunk in parallel
             data = list(tqdm(pool.imap(obtain_cupid_data, zip(range(start, end), [dataset]*(end - start)), 1), total=end-start, position=1, leave=False, disable=not verbose))               
 
             # File writing

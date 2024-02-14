@@ -1,7 +1,7 @@
 # Imports
 from __future__ import annotations
 import numpy as np
-from datasets.cupid import CuPID
+from .cupid import CuPID
 
 class CupidPartition:
     def __init__(self, num_cuboids, b=0) -> None:
