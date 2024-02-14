@@ -9,7 +9,7 @@ class DataModule():
     A base class for data module encapsulation that allows easy instantiation of an organised
     class that handles dataset loading and dataloader set up.
     """
-    def __init__(self, train_dir: str, val_dir: str, batch_size: int, dataloader_class: Union[std.DataLoader, graph.DataLoader]):
+    def __init__(self, batch_size: int, dataloader_class: Union[std.DataLoader, graph.DataLoader]):
         """
         Save information as attributes.
 
@@ -23,12 +23,11 @@ class DataModule():
         - dataloader_class: torch.utils.data.DataLoader | torch_geomteric.loader.DataLoader
             - Either a torch or torch_geometric dataloader
         """
-        self.train_dir = train_dir
-        self.val_dir = val_dir
         self.batch_size = batch_size
         self.dataloader_class = dataloader_class
         self.train_set = None
         self.val_set = None
+        self.test_set = None
         self.setup()
 
 
@@ -49,3 +48,9 @@ class DataModule():
         Returns the validation dataloader.
         """
         return self.dataloader_class(dataset=self.val_set, batch_size=self.batch_size, shuffle=False)
+    
+    def test_dataloader(self):
+        """
+        Returns the testing dataloader.
+        """
+        return self.dataloader_class(dataset=self.test_set, batch_size=self.batch_size, shuffle=False)
