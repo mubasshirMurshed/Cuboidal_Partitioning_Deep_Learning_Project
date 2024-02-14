@@ -22,13 +22,13 @@ class rawMNISTDataset:
         self.source_root = root + "mnistPytorch/"                           # The path to MNIST dataset provided by PyTorch
         self.mode = mode
         self.train_length = train_length
-        self.val_length = 60000 - self.train_length
-        self.test_length = 10000
         self.max_entries_per_file = max_entries_per_file
 
         # MNIST Data Source with CuPID transform
         self.dataset = MNIST(root=self.source_root, train=True, transform=CupidPartition(self.num_cuboids), download=True)
         self.test_dataset = MNIST(root=self.source_root, train=False, transform=CupidPartition(self.num_cuboids), download=True)
+        self.val_length = len(self.dataset) - self.train_length
+        self.test_length = len(self.test_dataset)
 
         # Deal with train and validation split
         generator = torch.Generator().manual_seed(42)
@@ -36,12 +36,12 @@ class rawMNISTDataset:
                                                             [self.train_length, self.val_length], 
                                                             generator=generator)
 
-    def create_csv_files(self) -> None:
-        self.create_csv_file(self.train_dataset, "Train")
-        self.create_csv_file(self.val_dataset, "Validation")
-        self.create_csv_file(self.test_dataset, "Test")
+    def create_csv_files(self, verbose:bool=False) -> None:
+        self.create_csv_file(self.train_dataset, "Train", verbose)
+        self.create_csv_file(self.val_dataset, "Validation", verbose)
+        self.create_csv_file(self.test_dataset, "Test", verbose)
 
-    def create_csv_file(self, dataset, split: str) -> None:
+    def create_csv_file(self, dataset, split: str, verbose: bool=False) -> None:
         # Filename of where to write
         filepath = f"{self.root}mnist{split}-{self.mode}-{self.num_cuboids}-1.csv"
 
@@ -50,19 +50,19 @@ class rawMNISTDataset:
 
         # If file already exists, then return
         if os.path.isfile(filepath):
-            print(f"{split} dataset already exists.")
+            if verbose: print(f"{split} dataset already exists.")
             return
-            
 
+        if verbose: print(f"Generating {split} dataset files...")
         # Iterate over every chunk of data
-        for i in tqdm(range(math.ceil(len(dataset) / self.max_entries_per_file)), position=0):
+        for i in tqdm(range(math.ceil(len(dataset) / self.max_entries_per_file)), position=0, leave=False, disable=not verbose):
             # For each image in the chunk, pre allocate space for data collection
             start = i*self.max_entries_per_file
             end = min((i+1)*self.max_entries_per_file, len(dataset))
 
             # Create multiprocessing pool
-            pool = mp.Pool(24)
-            data = list(tqdm(pool.imap(obtain_cupid_data, list(zip(range(start, end), [dataset]*(end - start))), 1), total=end-start, position=1, leave=False))               
+            pool = mp.Pool(30)
+            data = list(tqdm(pool.imap(obtain_cupid_data, zip(range(start, end), [dataset]*(end - start)), 1), total=end-start, position=1, leave=False, disable=not verbose))               
 
             # File writing
             filepath = f"{self.root}mnist{split}-{self.mode}-{self.num_cuboids}-{i+1}.csv"
@@ -77,7 +77,7 @@ class rawMNISTDataset:
             # csv file complete
             file.close()
 
-        print("Dataset file generated.")
+        if verbose: print(f"{split} dataset files generated.\n")
 
 
 def adjacent(c1, c2) -> bool:
