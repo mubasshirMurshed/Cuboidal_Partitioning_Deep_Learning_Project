@@ -487,7 +487,7 @@ class MNISTGraphDataset_CSV(InMemoryDataset):
         of the Data object for each image, including its feature matrix, adjacency matrix and label.
         """
         # Give UI information
-        print("Loading in dataset in memory...")
+        print(f"Loading in {self.split} Dataset in memory...")
         full_data_list = []
 
         for filepath in self.raw_paths:
