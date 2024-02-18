@@ -475,7 +475,7 @@ class MNISTGraphDataset_CSV(InMemoryDataset):
         """
         The name of the file which has the processed and saved data.
         """
-        return [f'mnist{self.split}-{self.mode}-{self.num_cuboids}-{self.length*len(self.raw_file_names)}-{self.ablation_code}.pt']
+        return [f'mnist{self.split}-{self.mode}-{self.num_cuboids}-{self.length*len(self.raw_file_names)}-{self.ablation_code}.pt'] #TODO: Actual length not calculated correctly
 
 
     def process(self):
@@ -490,17 +490,92 @@ class MNISTGraphDataset_CSV(InMemoryDataset):
         print(f"Loading in {self.split} Dataset in memory...")
         full_data_list = []
 
-        for filepath in self.raw_paths:
+        # Variables to help store mean and stdev of each feature
+        x_centre_totals = [0, 0]
+        y_centre_totals = [0, 0]
+        colour_totals = [0, 0]
+        num_pixels_totals = [0, 0]
+        angle_totals = [0, 0]
+        width_totals = [0, 0]
+        height_totals = [0, 0]
+
+        # Open each filepath in a for loop like below and just 
+        # calculate the mean and stdev of each ablation
+        num_cols = [0]*len(self.raw_paths)
+        for i, filepath in enumerate(self.raw_paths):
             # Find max number of columns in csv
             f = open(filepath)
-            num_cols = max(len(line.split(',')) for line in f)
+            num_cols[i] = max(len(line.split(',')) for line in f)
             f.close()
 
             # Read in data file and save attributes
             if self.length is not None:
-                df = pd.read_csv(filepath, nrows=self.length, header=None, skiprows=[0], names=range(num_cols)).fillna(0)
+                df = pd.read_csv(filepath, nrows=self.length, header=None, skiprows=[0], names=range(num_cols[i])).fillna(0)
             else:
-                df = pd.read_csv(filepath, header=None, skiprows=[0], names=range(num_cols)).fillna(0)
+                df = pd.read_csv(filepath, header=None, skiprows=[0], names=range(num_cols[i])).fillna(0)
+
+            # Iterate over each CuPID image in the current file
+            for i in tqdm(range(len(df)), leave=False):
+                # Current Image
+                img_data = df.iloc[i]
+
+                # Create node feature matrix
+                num_nodes = int(img_data[3])
+
+                # Create the single row vector of relevant values
+                if self.x_centre:
+                    x_centre_totals[0] += img_data.values[4:4+num_nodes].mean()
+                    x_centre_totals[1] += (img_data.values[4:4+num_nodes]**2).mean()
+                if self.y_centre:
+                    y_centre_totals[0] += img_data.values[4+num_nodes:4+num_nodes*2].mean()
+                    y_centre_totals[1] += (img_data.values[4+num_nodes:4+num_nodes*2]**2).mean()
+                if self.colour:
+                    colour_totals[0] += img_data.values[4+num_nodes*2:4+num_nodes*3].mean()
+                    colour_totals[1] += (img_data.values[4+num_nodes*2:4+num_nodes*3]**2).mean()
+                if self.num_pixels:
+                    num_pixels_totals[0] += img_data.values[4+num_nodes*3:4+num_nodes*4].mean()
+                    num_pixels_totals[1] += (img_data.values[4+num_nodes*3:4+num_nodes*4]**2).mean()
+                if self.angle:
+                    angle_totals[0] += img_data.values[4+num_nodes*4:4+num_nodes*5].mean()
+                    angle_totals[1] += (img_data.values[4+num_nodes*4:4+num_nodes*5]**2).mean()
+                if self.width:
+                    width_totals[0] += img_data.values[4+num_nodes*5:4+num_nodes*6].mean()
+                    width_totals[1] += (img_data.values[4+num_nodes*5:4+num_nodes*6]**2).mean()
+                if self.height:
+                    height_totals[0] += img_data.values[4+num_nodes*6:4+num_nodes*7].mean()
+                    height_totals[1] += (img_data.values[4+num_nodes*6:4+num_nodes*7]**2).mean()
+
+        # Calculate mean and stdev for each ablation
+        n = self.length*len(self.raw_file_names)
+        if self.x_centre:
+            x_mean = x_centre_totals[0]/n
+            x_std = math.sqrt(x_centre_totals[1]/n - x_mean**2)
+        if self.y_centre:
+            y_mean = y_centre_totals[0]/n
+            y_std = math.sqrt(y_centre_totals[1]/n - y_mean**2)
+        if self.colour:
+            colour_mean = colour_totals[0]/n
+            colour_std = math.sqrt(colour_totals[1]/n - colour_mean**2)
+        if self.num_pixels:
+            num_pixels_mean = num_pixels_totals[0]/n
+            num_pixels_std = math.sqrt(num_pixels_totals[1]/n - num_pixels_mean**2)
+        if self.angle:
+            angles_mean = angle_totals[0]/n
+            angles_std = math.sqrt(angle_totals[1]/n - angles_mean**2)
+        if self.width:
+            width_mean = width_totals[0]/n
+            width_std = math.sqrt(width_totals[1]/n - width_mean**2)
+        if self.height:
+            height_mean = height_totals[0]/n
+            height_std = math.sqrt(height_totals[1]/n - height_mean**2)
+
+
+        for i, filepath in enumerate(self.raw_paths):
+            # Read in data file and save attributes
+            if self.length is not None:
+                df = pd.read_csv(filepath, nrows=self.length, header=None, skiprows=[0], names=range(num_cols[i])).fillna(0)
+            else:
+                df = pd.read_csv(filepath, header=None, skiprows=[0], names=range(num_cols[i])).fillna(0)
 
             # Make space for data objects from this file
             data_list = [0]*(len(df))
@@ -517,31 +592,38 @@ class MNISTGraphDataset_CSV(InMemoryDataset):
                 feature_matrix = []
                 if self.x_centre:
                     X = img_data.values[4:4+num_nodes]
-                    X = X / 28  # Normalization
+                    # X = X / 28  # Normalization
+                    X = (X - x_mean)/x_std
                     feature_matrix.extend(X)
                 if self.y_centre:
                     Y = img_data.values[4+num_nodes:4+num_nodes*2]
-                    Y = Y / 28  # Normalization
+                    # Y = Y / 28  # Normalization
+                    Y = (Y - y_mean)/y_std
                     feature_matrix.extend(Y)
                 if self.colour:
                     C = img_data.values[4+num_nodes*2:4+num_nodes*3]
-                    C = C / 255  # Normalization
+                    # C = C / 255  # Normalization
+                    C = (C - colour_mean)/colour_std
                     feature_matrix.extend(C)
                 if self.num_pixels:
                     N = img_data.values[4+num_nodes*3:4+num_nodes*4]
-                    N = N / (28*28)  # Normalization
+                    # N = N / (28*28)  # Normalization
+                    N = (N - num_pixels_mean)/num_pixels_std
                     feature_matrix.extend(N)
                 if self.angle:
                     A = img_data.values[4+num_nodes*4:4+num_nodes*5]
-                    A = A / 90  # Normalization
+                    # A = A / 90  # Normalization
+                    A = (A - angles_mean) / angles_std
                     feature_matrix.extend(A)
                 if self.width:
                     W = img_data.values[4+num_nodes*5:4+num_nodes*6]
-                    W = W / 28  # Normalization
+                    # W = W / 28  # Normalization
+                    W = (W - width_mean) / width_std
                     feature_matrix.extend(W)
-                if self.width:
+                if self.height:
                     H = img_data.values[4+num_nodes*6:4+num_nodes*7]
-                    H = H / 28  # Normalization
+                    # H = H / 28  # Normalization
+                    H = (H - height_mean) / height_std
                     feature_matrix.extend(H)
                 
                 x = torch.tensor(feature_matrix).reshape([len(self.ablation_code), num_nodes]).t().float()
