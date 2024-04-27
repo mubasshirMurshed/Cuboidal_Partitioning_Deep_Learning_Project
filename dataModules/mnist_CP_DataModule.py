@@ -7,7 +7,7 @@ class MNIST_CP_DataModule(DataModule):
     """
     A data module for the cuboidal graph dataset.
     """
-    def __init__(self, num_cuboids: int, batch_size: int, x_centre=False,
+    def __init__(self, num_cuboids: int, batch_size: int, mode: str, x_centre=False,
                 y_centre=False, colour=False, num_pixels=False, angle=False,
                 width=False, height=False):
         """
@@ -18,6 +18,7 @@ class MNIST_CP_DataModule(DataModule):
             - How many data samples per batch to be loaded
         """
         self.num_cuboids = num_cuboids
+        self.mode = mode
         self.x_centre = x_centre
         self.y_centre = y_centre
         self.colour = colour
@@ -34,7 +35,7 @@ class MNIST_CP_DataModule(DataModule):
         """
         self.train_set = MNISTGraphDataset_CSV(root="data/",
                                               split="Train",
-                                              mode="CP",
+                                              mode=self.mode,
                                               num_cuboids=self.num_cuboids,
                                               x_centre=self.x_centre,
                                               y_centre=self.y_centre,
@@ -47,7 +48,7 @@ class MNIST_CP_DataModule(DataModule):
 
         self.val_set = MNISTGraphDataset_CSV(root="data/",
                                             split="Validation",
-                                            mode="CP",
+                                            mode=self.mode,
                                             num_cuboids=self.num_cuboids,
                                             x_centre=self.x_centre,
                                             y_centre=self.y_centre,
@@ -60,7 +61,7 @@ class MNIST_CP_DataModule(DataModule):
         
         self.test_set = MNISTGraphDataset_CSV(root="data/",
                                             split="Test",
-                                            mode="CP",
+                                            mode=self.mode,
                                             num_cuboids=self.num_cuboids,
                                             x_centre=self.x_centre,
                                             y_centre=self.y_centre,
