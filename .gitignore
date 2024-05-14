@@ -101,12 +101,18 @@ ENV/
 .mypy_cache/
 
 # input data, saved log, checkpoints
-data/
+data/csv/
+data/source/
 input/
 saved/
 literature review/
 cupid.py
 test.ipynb
+datafiles/
+CuPID.pdf
+scribble.ipynb
+*.csv
+*.pt
 
 # editor, os cache directory
 .vscode/
