@@ -39,25 +39,28 @@ class CuPIDTransform:
 
 class SLICPartition:
     def __init__(self, num_segments) -> None:
-        pass
+        self.num_segments = num_segments
 
     def __call__(self, sample):
         # Preprocess image for partitioning
         sample = np.asarray(sample)
         if len(sample.shape) != 3:
             sample = np.expand_dims(sample, -1)
-        c = SLIC(sample)
-        pass
+        s = SLIC(sample)
+        s.partition(N=self.num_segments)
+        return s.segments
 
 
 class SLICTransform:
     def __init__(self, num_segments) -> None:
-        pass
+        self.num_segments = num_segments
 
     def __call__(self, sample):
         # Preprocess image for partitioning
         sample = np.asarray(sample)
         if len(sample.shape) != 3:
             sample = np.expand_dims(sample, -1)
-        c = SLIC(sample)
-        pass
+        s = SLIC(sample)
+        s.partition(self.num_segments)
+        I_r = s.reconstruct()
+        return I_r.copy()
