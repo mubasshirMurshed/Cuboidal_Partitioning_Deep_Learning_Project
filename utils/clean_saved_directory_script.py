@@ -1,7 +1,6 @@
 import os
 import shutil
 
-
 def main():
     root = os.getcwd() + "/saved/"
     for dm_dir in os.listdir(root):

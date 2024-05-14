@@ -1,9 +1,10 @@
 import torch.nn as nn
 from datetime import datetime
 from os import makedirs
-from dataModules.dataModule import DataModule
+from data.datamodules import DataModule
 from typing import Callable
 
+# TODO: Figure out how to rename stuff based on data module naming schemes
 
 def dirManager(model: nn.Module, data_module: DataModule):
     """

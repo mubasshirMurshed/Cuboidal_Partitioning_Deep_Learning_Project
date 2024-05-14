@@ -1,6 +1,5 @@
 import sys
 
-
 class Logger():
     """
     A custom logger for stdout of the Python to direct output log to a file at end of runtime.
