@@ -202,7 +202,7 @@ def obtain_cupid_data(arg):
 import time
 
 def main():
-    creator = CSV_Dataset_Creator("data/csv/", "mnist", 8, "CP", chunksize=1)
+    creator = CSV_Dataset_Creator("data/csv/", "mnist", 16, "CP", chunksize=1)
     start = time.perf_counter()
     creator.create_csv_files(verbose=True)
     end = time.perf_counter()

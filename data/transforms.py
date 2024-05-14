@@ -22,7 +22,35 @@ class CuPIDPartition:
         return c.cuboids
     
 
+class CuPIDTransform:
+    def __init__(self, num_cuboids, b=0) -> None:
+        self.num_cuboids = num_cuboids
+        self.b = b
+
+    def __call__(self, sample):
+        sample = np.asarray(sample)
+        if len(sample.shape) != 3:
+            sample = np.expand_dims(sample, -1)
+        c = CuPID(sample)
+        c.partition(self.num_cuboids, b=self.b)
+        I_r = c.reconstruct()
+        return I_r.copy()
+    
+
 class SLICPartition:
+    def __init__(self, num_segments) -> None:
+        pass
+
+    def __call__(self, sample):
+        # Preprocess image for partitioning
+        sample = np.asarray(sample)
+        if len(sample.shape) != 3:
+            sample = np.expand_dims(sample, -1)
+        c = SLIC(sample)
+        pass
+
+
+class SLICTransform:
     def __init__(self, num_segments) -> None:
         pass
 
