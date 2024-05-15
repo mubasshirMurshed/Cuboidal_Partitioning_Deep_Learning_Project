@@ -4,7 +4,6 @@ from os import makedirs
 from data.datamodules import DataModule
 from typing import Callable
 
-# TODO: Figure out how to rename stuff based on data module naming schemes
 
 def dirManager(model: nn.Module, data_module: DataModule):
     """
@@ -17,7 +16,10 @@ def dirManager(model: nn.Module, data_module: DataModule):
     """
     # Get name of the model and data module class
     modelName = model._get_name()
-    dataModuleName = data_module.__class__.__name__
+    dataset_name = data_module.dataset_name.upper()
+    partition_mode = data_module.mode.upper()
+    num_segments = data_module.num_segments
+    dataModuleName = f"{dataset_name}_{partition_mode}_{num_segments}_DataModule"
     ablationCode = getattr(data_module.train_set, "ablation_code", None)
 
     # Get current time
@@ -49,6 +51,7 @@ def count_untrainable_parameters(model):
 
 def getPythonFilePath(obj):
     return obj.__module__.replace(".", "/") + ".py"
+
 
 def generateConfusionMatrix(self, validate_fn: Callable):
         """
