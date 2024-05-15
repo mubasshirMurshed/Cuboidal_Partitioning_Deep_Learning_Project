@@ -11,7 +11,7 @@ class DataModule():
     A base class for data module encapsulation that allows easy instantiation of an organised
     class that handles dataset loading and dataloader set up.
     """
-    def __init__(self, batch_size: int, dataloader_class: Union[std.DataLoader, graph.DataLoader]):
+    def __init__(self, batch_size: int, dataset_name, mode, dataloader_class: Union[std.DataLoader, graph.DataLoader]):
         """
         Save information as attributes.
 
@@ -30,6 +30,8 @@ class DataModule():
         self.train_set = None
         self.val_set = None
         self.test_set = None
+        self.dataset_name = dataset_name
+        self.mode = mode
         self.setup()
 
 
@@ -72,9 +74,7 @@ class General_DataModule(DataModule):
         - batch_size: int
             - How many data samples per batch to be loaded
         """
-        self.dataset_name = dataset
         self.num_segments = num_segments
-        self.mode = mode
         self.x_centre = x_centre
         self.y_centre = y_centre
         self.colour = colour
@@ -83,7 +83,7 @@ class General_DataModule(DataModule):
         self.width = width
         self.height = height
         self.stdev = stdev
-        super().__init__(batch_size, DataLoader)
+        super().__init__(batch_size, dataset, mode, DataLoader)
         
 
     def setup(self):

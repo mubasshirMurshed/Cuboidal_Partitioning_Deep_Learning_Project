@@ -9,12 +9,15 @@ from torch.optim import Optimizer
 from torch.utils.tensorboard import SummaryWriter
 from typing import Union, Dict
 from utils.logger import Logger
-from utils.utilities import dirManager, count_trainable_parameters, count_untrainable_parameters, getPythonFilePath
+from utils.utilities import dirManager, count_trainable_parameters, count_untrainable_parameters, getPythonFilePath, prettyprint
 import os
 from data.datamodules import DataModule
 from shutil import copy
 from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionMatrix
 from torchmetrics import MetricCollection
+from torchinfo import summary
+
+HYPHEN_COUNT = 80
 
 class Trainer():
     """
@@ -81,7 +84,7 @@ class Trainer():
         # Create and setup metric trackers
         self.train_accuracy = MulticlassAccuracy(self.num_classes).to(self.device)
         self.val_accuracy = MulticlassAccuracy(self.num_classes).to(self.device)
-        self.final_metrics = MetricCollection( {
+        self.val_metrics = MetricCollection( {
             "Top 2 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=2),
             "Top 3 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=3),
             "Confusion Matrix" : MulticlassConfusionMatrix(self.num_classes)
@@ -109,12 +112,12 @@ class Trainer():
             # Set stdout logger
             sys.stdout = Logger(self.log_dir, "/output.log", self.verbose)
 
-            # Log hyperparameters
+            # Log hyperparameters TODO: FIX THIS / INVESTIGATE THIS
             self.logger.add_hparams(hparam_dict=self.hparams, 
                 metric_dict={}, run_name=os.path.dirname(os.path.realpath("main.py")) + os.sep + self.log_dir
             )
 
-            # Save model, datamodule and main python files in log_dir
+            # Save model, datamodule and main python files in logging directory
             model_path = getPythonFilePath(self.model)
             dm_path = getPythonFilePath(self.data_module)
             copy(model_path, self.file_dir)
@@ -124,46 +127,47 @@ class Trainer():
         # Check if model is to be loaded
         if self.resume_from_ckpt is not None:
             self.model.load_state_dict(torch.load(self.resume_from_ckpt))
-            print('-' * 80)
+            print('-' * HYPHEN_COUNT)
             print("Model successfully loaded from " + self.resume_from_ckpt)
 
         # Move model over to device
         self.model = self.model.to(device=self.device)
 
-        # Print out what data module is being trained on
-        print('-' * 80)
-        print(f"Data Module:\t\t{self.data_module.__class__.__name__}")
-        print('-' * 80)
+        # Print out what dataset is being trained on
+        print('-' * HYPHEN_COUNT)
+        print(f"Dataset:\t\t{self.data_module.dataset_name.upper()}")
+        print('-' * HYPHEN_COUNT)
+
+        # Print out partitioning algorithm and segment number
+        print(f"Partition:\t\t{'CuPID' if self.data_module.mode == 'CP' else 'SLIC'} - {self.data_module.num_segments}")
+        print('-' * HYPHEN_COUNT)
 
         # Print ablation code
         print(f"Ablation Code:\t\t{self.data_module.train_set.ablation_code}")
-        print('-' * 80)
+        print('-' * HYPHEN_COUNT)
 
         # Print model name
         print(f"Model:\t\t\t{self.model.__class__.__name__}")
-        print('-' * 80)
+        print('-' * HYPHEN_COUNT)
 
         # Print out hyperparameters
         print(f"Hyperparameters:")
         for k, v in self.hparams.items():
             print(f"\t{k:15s} :  {v}")
-        print('-' * 80)
+        print('-' * HYPHEN_COUNT)
 
         # Print out number of parameters of models
         print(f"Model Summary:")
         num_trainable_parameters = count_trainable_parameters(self.model)
         num_untrainable_parameters = count_untrainable_parameters(self.model)
         total_paramaters = num_trainable_parameters + num_untrainable_parameters
-        estimated_size_kb = total_paramaters / 250
-        model_summary = f"\
-\t{num_trainable_parameters/1000:6.2f} K \t Trainable params\n\
-\t{num_untrainable_parameters/1000:6.2f} K \t Non-trainable params\n\
-\t{total_paramaters/1000:6.2f} K \t Total params\n\
-\t{estimated_size_kb:6.2f} KB\t Estimated size of model"
-        print(model_summary)
-        print('-' * 80)
+        estimated_size_kb = total_paramaters / 250        
+        summary(self.model)
+        print(f"Estimated size of model\t{estimated_size_kb:6.2f} KB")
+        print('-' * HYPHEN_COUNT)
+        print('-' * HYPHEN_COUNT)
         
-        # Determine training and validating functions
+        # Determine training and validating functions   TODO: Make better when it comes to ensemble and CNN robustness
         if not self.is_graph_model:
             train_fn = self.train
             validate_fn = self.validation
@@ -185,7 +189,7 @@ class Trainer():
                 train_acc = self.train_accuracy.compute()
                 val_acc = self.val_accuracy.compute()
                 print("Epoch: {}/{}, Train Loss: {:.3f}, Train Acc: {:.2%}, Val Loss: {:.3f}, Val Accuracy: {:.2%}".format(epoch+1, self.max_epochs, train_loss, train_acc.item(), val_loss, val_acc.item()))
-                print('-' * 80)
+                print('-' * HYPHEN_COUNT)
 
                 # Reset metrics
                 self.train_accuracy.reset()
@@ -210,21 +214,22 @@ class Trainer():
         
         # Print confusion matrix
         if self.print_conf_matrix:
+            # Run a single validation run for confusion matrix
             avg_val_loss = validate_fn(final_metrics=True)
-            extra_metrics = self.final_metrics.compute()
-            self.final_metrics.reset()
+            val_metrics = self.val_metrics.compute()
+            self.val_metrics.reset()
             val_acc = self.val_accuracy.compute()
             self.val_accuracy.reset()
-            print('-' * 80)
+            print('-' * HYPHEN_COUNT)
             print("Validation Dataset Results:")
-            print('-' * 80)
+            print('-' * HYPHEN_COUNT)
             print(f"Loss: {avg_val_loss:.5}")
             print(f"Top 1 Accuracy: {val_acc:.2%}")
-            print(f"Top 2 Accuracy: {extra_metrics['Top 2 Accuracy']:.2%}")
-            print(f"Top 3 Accuracy: {extra_metrics['Top 3 Accuracy']:.2%}")
-            print('-' * 80)
-            print(extra_metrics["Confusion Matrix"].to("cpu").numpy())
-            print('-' * 80)
+            print(f"Top 2 Accuracy: {val_metrics['Top 2 Accuracy']:.2%}")
+            print(f"Top 3 Accuracy: {val_metrics['Top 3 Accuracy']:.2%}")
+            print('-' * HYPHEN_COUNT)
+            prettyprint(val_metrics["Confusion Matrix"].to("cpu").numpy(), self.num_classes)
+            print('-' * HYPHEN_COUNT)
 
         if self.allow_log:
             # Save current model + output log
@@ -250,16 +255,16 @@ class Trainer():
         # Compute metrics and print results
         test_metric_results = self.test_metrics.compute()
         self.test_metrics.reset()
-        print('-' * 80)
+        print('-' * HYPHEN_COUNT)
         print("Test Dataset Results:")
-        print('-' * 80)
+        print('-' * HYPHEN_COUNT)
         print(f"Loss: {avg_test_loss:.5}")
         print(f"Top 1 Accuracy: {test_metric_results['Top 1 Accuracy']:.2%}")
         print(f"Top 2 Accuracy: {test_metric_results['Top 2 Accuracy']:.2%}")
         print(f"Top 3 Accuracy: {test_metric_results['Top 3 Accuracy']:.2%}")
-        print('-' * 80)
-        print(test_metric_results["Confusion Matrix"].to("cpu").numpy())
-        print('-' * 80)
+        print('-' * HYPHEN_COUNT)
+        prettyprint(test_metric_results["Confusion Matrix"].to("cpu").numpy(), self.num_classes)
+        print('-' * HYPHEN_COUNT)
         
 
     def train(self):
@@ -315,7 +320,7 @@ class Trainer():
                 # Update trackers
                 self.val_accuracy.update(outputs, labels)
                 if final_metrics:
-                    self.final_metrics.update(outputs, labels)
+                    self.val_metrics.update(outputs, labels)
 
             return running_loss/len(self.validation_loader)
 
@@ -397,7 +402,7 @@ class Trainer():
                 # Update trackers
                 self.val_accuracy.update(outputs, batch.y)
                 if final_metrics:
-                    self.final_metrics.update(outputs, batch.y)
+                    self.val_metrics.update(outputs, batch.y)
 
             return running_loss/len(self.validation_loader) # return average validation loss
 

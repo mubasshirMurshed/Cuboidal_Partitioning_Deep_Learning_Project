@@ -15,7 +15,7 @@ class Logger():
             - Name of the file to be made to house the output log of the console
         """
         self.terminal = sys.stdout
-        self.log = open(filepath + filename, "x")   # Open in creation mode since file does not and should not exist
+        self.log = open(filepath + filename, "x", encoding="utf-8")   # Open in creation mode since file does not and should not exist
         self.verbose = verbose
    
 

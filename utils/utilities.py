@@ -77,3 +77,21 @@ def generateConfusionMatrix(self, validate_fn: Callable):
             for elem in row:
                 print(f"{elem*100/categoryTotal:5.0f} ", end="")
             print(f"{sum(row):7d}")
+
+def prettyprint(matrix, num_classes):
+    # Print ordering information
+    print("Rows: True")
+    print("Columns: Predicted")
+
+    # Print formatted table heading
+    for i in range(num_classes):
+        print(f"{i:8d}", end="")
+    print("")
+
+    # Print table body
+    for i, row in enumerate(matrix):
+        print(f"{i}", end="")
+        categoryTotal = sum(row)
+        for elem in row:
+            print(f"{elem*100/categoryTotal:7.0f} ", end="")
+        print(f"{sum(row):7d}")

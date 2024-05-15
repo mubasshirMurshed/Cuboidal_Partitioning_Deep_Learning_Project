@@ -45,7 +45,7 @@ hparams["loss_fn"] = loss_fn.__class__.__name__
 
 # Define flags
 allow_log = False
-save_every_n_epoch = 1
+save_every_n_epoch = 5
 resume_from_ckpt = None
 is_graph_model = True
 

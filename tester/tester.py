@@ -13,6 +13,7 @@ from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionM
 from torchmetrics import MetricCollection
 
 def main():
+    # Initialise important variables
     num_classes = 10
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     loss_fn = nn.CrossEntropyLoss()
@@ -76,13 +77,13 @@ def main():
         if predictions[i, 0] != predictions[i, 1]:
             mislabelled.append((i, predictions[i, 0].item(), predictions[i, 1].item()))
 
-    print("Mislabelled MNIST Test images: " + str(list(zip(*mislabelled))[0]))
+    print("Mislabelled Test images: " + str(list(zip(*mislabelled))[0]))
 
     # Only view first 50
     mislabelled = mislabelled[:50]
 
     # Plot all MNIST images in a grid with caption of label vs predicted
-    mnist = MNIST(root="data/mnistPytorch/", train=False)
+    mnist = MNIST(root="data/source/MNIST/", train=False)
     NUM_COLUMNS = 10
     NUM_ROWS = math.ceil(len(mislabelled) / NUM_COLUMNS)
     fig, axes = plt.subplots(NUM_ROWS, NUM_COLUMNS)

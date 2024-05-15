@@ -1,5 +1,5 @@
 import os
-from transforms import CuPIDPartition
+from transforms import CuPIDPartition, SLICPartition
 from data_classes import MyMNIST, MyCIFAR_10, MyMedMNIST, MyOmniglot
 from typing import Optional
 import csv
@@ -24,6 +24,11 @@ class CSV_Dataset_Creator:
         # Determine partitioning transform
         if self.mode == "CP":
             transform = CuPIDPartition(self.num_segments)
+        elif self.mode == "SP":
+            transform = SLICPartition(self.num_segments)
+        else:
+            print("Error, mode is not recognised or supported.")
+            return
 
         # Data Source with Partition transform
         match dataset:
@@ -72,7 +77,10 @@ class CSV_Dataset_Creator:
                 end = min((i+1)*self.max_entries_per_file, len(dataset))
 
                 # Obtain the relevant CuPID data of all images in this chunk in parallel
-                data = list(tqdm(pool.imap(obtain_cupid_data, zip(range(start, end), [dataset]*(end - start)), self.chunksize), total=end-start, position=1, leave=False, disable=not verbose))               
+                if self.mode == "CP":
+                    data = list(tqdm(pool.imap(obtain_cupid_data, zip(range(start, end), [dataset]*(end - start)), self.chunksize), total=end-start, position=1, leave=False, disable=not verbose))               
+                elif self.mode == "SP":
+                    data = list(tqdm(pool.imap(obtain_slic_data, zip(range(start, end), [dataset]*(end - start)), self.chunksize), total=end-start, position=1, leave=False, disable=not verbose)) 
 
                 # File writing
                 filepath = f"{self.root}{self.dataset_name}{split}-{self.mode}-{self.num_segments}-{i+1}.csv"
@@ -129,11 +137,11 @@ def obtain_cupid_data(arg):
     no_of_features = shape[-1]
     new_row_entry = [i, label, 0, no_of_nodes, no_of_features, shape[0], shape[1]]
 
-    # Add in centre x coordinates cuboid
+    # Add in center x coordinates cuboid
     for _, row in cupid_table.iterrows():
         new_row_entry.append((row["size"][1]+1)/2 + row["start"][1] + 1)
 
-    # Add in centre y coordinates for each cuboid
+    # Add in center y coordinates for each cuboid
     for _, row in cupid_table.iterrows():
         new_row_entry.append((row["size"][0]+1)/2 + row["start"][0] + 1)
 
@@ -199,8 +207,91 @@ def obtain_cupid_data(arg):
 
     return new_row_entry
 
-import time
+def obtain_slic_data(arg):
+    # Obtain SLIC data of the image
+    i, dataset = arg
+    slic_table, label = dataset[i]
+    if type(label) != int:
+        label = np.array(label).item()
+    
+    # Initialise first few column values
+    shape = dataset.shape
+    no_of_nodes = len(slic_table)
+    no_of_features = shape[-1]
+    new_row_entry = [i, label, 0, no_of_nodes, no_of_features, shape[0], shape[1]]
 
+    # Add in center x coordinates cuboid
+    for _, row in slic_table.iterrows():
+        new_row_entry.append(row["x_center"])
+
+    # Add in center y coordinates for each cuboid
+    for _, row in slic_table.iterrows():
+        new_row_entry.append(row["y_center"])
+
+    # Add in colour values for each cuboid (restore float to be between 0-255)
+    for j in range(no_of_features):
+        for _, row in slic_table.iterrows():
+            new_row_entry.append(np.around(row["mu"][j]*255, 2))
+    
+    # Add in num of pixels for each cuboid
+    for _, row in slic_table.iterrows():
+        new_row_entry.append(row["n"])
+
+    # Add in box angles for each cuboid
+    for _, row in slic_table.iterrows():
+        new_row_entry.append(round(math.atan(row["height"]/row["width"])*180/math.pi, 2))        # This is hardcoded to 2D
+
+    # Add in box width for each cuboid
+    for _, row in slic_table.iterrows():
+        new_row_entry.append(row["width"])
+
+    # Add in box height for each cuboid
+    for _, row in slic_table.iterrows():
+        new_row_entry.append(row["height"])
+
+    # Add in standard deviation for each cuboid w.r.t original sections (scaled to 255 colour space)
+    for j in range(no_of_features):
+        for _, row in slic_table.iterrows():
+            new_row_entry.append(np.around(np.sqrt(row["sigma2"][j])*255, 2))
+
+    # TODO: Calculate number of edges present
+    no_of_edges = 0
+    coo_src = []
+    coo_dst = []
+    for i in range(len(slic_table)):
+        for j in range(len(slic_table)):
+            if i == j:
+                continue
+            row1 = slic_table.iloc[i]
+            row2 = slic_table.iloc[j]
+
+            # Construct cuboid's x_centre, y_centre, width and height
+            c1 = ((row1["size"][1]+1)/2 + row1["start"][1] + 1,
+                (row1["size"][0]+1)/2 + row1["start"][0] + 1,
+                row1["size"][1],
+                row1["size"][0]
+                )
+
+            c2 = ((row2["size"][1]+1)/2 + row2["start"][1] + 1,
+                (row2["size"][0]+1)/2 + row2["start"][0] + 1,
+                row2["size"][1],
+                row2["size"][0]
+                )
+            
+            if adjacent(c1, c2):
+                no_of_edges += 1
+                coo_src.append(-1*row2["order"] - 1)
+                coo_dst.append(-1*row1["order"] - 1)
+
+    # Add the edge information
+    new_row_entry.append(no_of_edges)
+    new_row_entry.extend(coo_src)
+    new_row_entry.extend(coo_dst)
+
+    return new_row_entry
+
+
+import time
 def main():
     creator = CSV_Dataset_Creator("data/csv/", "mnist", 16, "CP", chunksize=1)
     start = time.perf_counter()
