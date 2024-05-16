@@ -29,11 +29,11 @@ def dirManager(model: nn.Module, data_module: DataModule):
     # Create Run ID and directory paths
     runID =  'Run_ID__' + dateString
     if ablationCode is not None:
-        log_dir = f"saved/{dataModuleName}/{ablationCode}/{modelName}/{runID}"
+        log_dir = f"saved/{dataModuleName}/{ablationCode}/{modelName}/{runID}/"
     else:
-        log_dir = f"saved/{dataModuleName}/{modelName}/{runID}"
-    ckpt_dir = log_dir + "/checkpoints"
-    file_dir = log_dir + "/python_files"
+        log_dir = f"saved/{dataModuleName}/{modelName}/{runID}/"
+    ckpt_dir = log_dir + "checkpoints/"
+    file_dir = log_dir + "python_files/"
 
     # Create directories if they do not exist
     makedirs(ckpt_dir)
@@ -80,8 +80,8 @@ def generateConfusionMatrix(self, validate_fn: Callable):
 
 def prettyprint(matrix, num_classes):
     # Print ordering information
-    print("Rows: True")
-    print("Columns: Predicted")
+    print("Rows: Truth")
+    print("Columns: Prediction")
 
     # Print formatted table heading
     for i in range(num_classes):

@@ -6,6 +6,7 @@ import torch
 from tqdm import tqdm
 import torch.nn as nn
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.tensorboard import SummaryWriter
 from typing import Union, Dict
 from utils.logger import Logger
@@ -16,6 +17,7 @@ from shutil import copy
 from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionMatrix
 from torchmetrics import MetricCollection
 from torchinfo import summary
+import csv
 
 HYPHEN_COUNT = 80
 
@@ -26,9 +28,10 @@ class Trainer():
     """
     def __init__(self,
             model: nn.Module, data_module: DataModule, num_classes: int,
-            loss_fn: nn.Module = None, optimizer: Optimizer = None, hparams: Dict = None, 
+            loss_fn: nn.Module = None, optimizer: Optimizer = None, scheduler: LRScheduler = None, hparams: Dict = None, 
             save_every_n_epoch: int = None, allow_log: bool = True, print_conf_matrix: bool = True,
-            resume_from_ckpt: Union[str, None]  = None, is_graph_model: bool = True, verbose: bool = True
+            resume_from_ckpt: Union[str, None]  = None, is_graph_model: bool = True, verbose: bool = True,
+            save_best: bool = True, log_to_csv: bool = True
         ) -> None:
         """
         Saves model, datasets/loaders and all flags passed.
@@ -64,6 +67,7 @@ class Trainer():
         self.max_epochs = self.hparams["max_epochs"]
         self.loss_fn = loss_fn
         self.optimizer = optimizer
+        self.scheduler = scheduler
         self.save_every_n_epoch = save_every_n_epoch
         self.allow_log = allow_log
         self.num_classes = num_classes
@@ -71,6 +75,8 @@ class Trainer():
         self.resume_from_ckpt = resume_from_ckpt
         self.is_graph_model = is_graph_model
         self.verbose = verbose
+        self.save_best = save_best
+        self.log_to_csv = log_to_csv
 
         # Create and setup dataloaders
         self.data_module = data_module
@@ -110,9 +116,9 @@ class Trainer():
             self.logger = SummaryWriter(self.log_dir)
 
             # Set stdout logger
-            sys.stdout = Logger(self.log_dir, "/output.log", self.verbose)
+            sys.stdout = Logger(self.log_dir, "output.log", self.verbose)
 
-            # Log hyperparameters TODO: FIX THIS / INVESTIGATE THIS
+            # Log hyperparameters
             self.logger.add_hparams(hparam_dict=self.hparams, 
                 metric_dict={}, run_name=os.path.dirname(os.path.realpath("main.py")) + os.sep + self.log_dir
             )
@@ -123,6 +129,14 @@ class Trainer():
             copy(model_path, self.file_dir)
             copy(dm_path, self.file_dir)
             copy("main.py", self.file_dir)
+
+            # Create csv file to contain results over each epoch
+            if self.log_to_csv:
+                filepath = self.log_dir + "result_log.csv"
+                os.makedirs(os.path.dirname(filepath), exist_ok=True)
+                csv_file = open(filepath, 'w', newline='')
+                writer = csv.writer(csv_file)
+                writer.writerow(["Epoch", "Train Loss", "Train Accuracy", "Validation Loss", "Validation Accuracy"])
 
         # Check if model is to be loaded
         if self.resume_from_ckpt is not None:
@@ -175,6 +189,10 @@ class Trainer():
             train_fn = self.train_G
             validate_fn = self.validation_G
 
+        # Initialise best model metric
+        if self.save_best:
+            best_val_loss = float("inf")
+
         # Try-Catch block for allowing graceful finish with Keyboard Interrupts
         try:
             # Loop over requested epochs
@@ -184,6 +202,9 @@ class Trainer():
 
                 # Run validation cycle
                 val_loss = validate_fn()
+
+                # Update learning rate
+                self.scheduler.step()
 
                 # Print metrics to console
                 train_acc = self.train_accuracy.compute()
@@ -202,46 +223,62 @@ class Trainer():
                     self.logger.add_scalar("val_loss", val_loss, epoch)
                     self.logger.add_scalar("val_acc", val_acc, epoch)
 
+                    # Save best checkpoint
+                    if self.save_best and val_loss < best_val_loss:
+                        torch.save(self.model.state_dict(), self.ckpt_dir + "best.pt")
+                        best_val_loss = val_loss
+
                     # Saving checkpoints
-                    if ((epoch+1) % self.save_every_n_epoch == 0):
-                        filename = f"/epoch={epoch+1}-val_loss={val_loss:.4f}-val_acc={val_acc:.4f}.pt"
+                    if self.save_every_n_epoch != 0 and ((epoch+1) % self.save_every_n_epoch == 0):
+                        filename = f"epoch={epoch+1}-val_loss={val_loss:.4f}-val_acc={val_acc:.4f}.pt"
                         torch.save(self.model.state_dict(), self.ckpt_dir + filename)
+
+                    # Keep track in csv log
+                    if self.log_to_csv:
+                        writer.writerow([epoch+1, train_loss, train_acc.item(), val_loss, val_acc.item()])
             
             print("Finished Training")
 
         except KeyboardInterrupt:
             print("Training halted")
         
+        # Run a single validation run for confusion matrix
+        avg_val_loss = validate_fn(final_metrics=True)
+        val_metrics = self.val_metrics.compute()
+        self.val_metrics.reset()
+        val_acc = self.val_accuracy.compute()
+        self.val_accuracy.reset()
+        print('-' * HYPHEN_COUNT)
+        print("Validation Dataset Results:")
+        print('-' * HYPHEN_COUNT)
+        print(f"Loss: {avg_val_loss:.5}")
+        print(f"Top 1 Accuracy: {val_acc:.2%}")
+        print(f"Top 2 Accuracy: {val_metrics['Top 2 Accuracy']:.2%}")
+        print(f"Top 3 Accuracy: {val_metrics['Top 3 Accuracy']:.2%}")
+        print('-' * HYPHEN_COUNT)
+
         # Print confusion matrix
         if self.print_conf_matrix:
-            # Run a single validation run for confusion matrix
-            avg_val_loss = validate_fn(final_metrics=True)
-            val_metrics = self.val_metrics.compute()
-            self.val_metrics.reset()
-            val_acc = self.val_accuracy.compute()
-            self.val_accuracy.reset()
-            print('-' * HYPHEN_COUNT)
-            print("Validation Dataset Results:")
-            print('-' * HYPHEN_COUNT)
-            print(f"Loss: {avg_val_loss:.5}")
-            print(f"Top 1 Accuracy: {val_acc:.2%}")
-            print(f"Top 2 Accuracy: {val_metrics['Top 2 Accuracy']:.2%}")
-            print(f"Top 3 Accuracy: {val_metrics['Top 3 Accuracy']:.2%}")
-            print('-' * HYPHEN_COUNT)
             prettyprint(val_metrics["Confusion Matrix"].to("cpu").numpy(), self.num_classes)
             print('-' * HYPHEN_COUNT)
 
         if self.allow_log:
             # Save current model + output log
-            torch.save(self.model.state_dict(), self.ckpt_dir + "/last.pt")
+            torch.save(self.model.state_dict(), self.ckpt_dir + "last.pt")
             print("Logs saved to {}".format(self.ckpt_dir))
+
+            # Close csv file writer
+            if self.log_to_csv:
+                csv_file.close()
 
 
     def test(self, model_ckpt=None) -> None:
         # Load model is a checkpoint is given
         if model_ckpt is not None:
             self.model.load_state_dict(torch.load(model_ckpt))
-        
+        else:
+            self.model.load_state_dict(torch.load(self.ckpt_dir + "best.pt"))
+
         # Move model over to device
         self.model = self.model.to(device=self.device)
 
@@ -263,8 +300,11 @@ class Trainer():
         print(f"Top 2 Accuracy: {test_metric_results['Top 2 Accuracy']:.2%}")
         print(f"Top 3 Accuracy: {test_metric_results['Top 3 Accuracy']:.2%}")
         print('-' * HYPHEN_COUNT)
-        prettyprint(test_metric_results["Confusion Matrix"].to("cpu").numpy(), self.num_classes)
-        print('-' * HYPHEN_COUNT)
+
+        # Print confusion matrix
+        if self.print_conf_matrix:
+            prettyprint(test_metric_results["Confusion Matrix"].to("cpu").numpy(), self.num_classes)
+            print('-' * HYPHEN_COUNT)
         
 
     def train(self):

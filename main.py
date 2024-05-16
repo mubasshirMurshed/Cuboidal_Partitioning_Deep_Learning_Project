@@ -19,7 +19,7 @@ torch_geometric.seed_everything(seed)
 hparams = {
     "max_epochs" : 100,
     "learning_rate" : 0.001,
-    "batch_size" : 128
+    "batch_size" : 64
 }
 
 # %% Create data module
@@ -39,18 +39,21 @@ model = MNIST_GAT2(num_features=data_module.train_set.num_features)
 # model = torch.compile(model, dynamic=True)  # :(
 
 loss_fn = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(params=model.parameters(), lr=hparams["learning_rate"])
+optimizer = torch.optim.AdamW(params=model.parameters(), lr=hparams["learning_rate"])
+# scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", 0.5, 5)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 5, 0.9)
 hparams["optimizer"] = optimizer.__class__.__name__
 hparams["loss_fn"] = loss_fn.__class__.__name__
+hparams["scheduler"] = scheduler.__class__.__name__
 
 # Define flags
-allow_log = False
-save_every_n_epoch = 5
+allow_log = True
+save_every_n_epoch = 10
 resume_from_ckpt = None
 is_graph_model = True
 
 # %% Running script
-trainer = Trainer(model=model, data_module=data_module, loss_fn=loss_fn, optimizer=optimizer, hparams=hparams,
+trainer = Trainer(model=model, data_module=data_module, loss_fn=loss_fn, optimizer=optimizer, scheduler=scheduler, hparams=hparams,
                 save_every_n_epoch=save_every_n_epoch, allow_log=allow_log, num_classes=num_classes, is_graph_model=is_graph_model,
                 resume_from_ckpt=resume_from_ckpt)
 
