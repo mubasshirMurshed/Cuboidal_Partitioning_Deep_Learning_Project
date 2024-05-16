@@ -96,3 +96,30 @@ class SLIC:
             I_r = np.round(I_r)
         I_r = I_r.astype(self.dtype)
         return I_r
+    
+
+    def adjacency_matrix(self) -> ndarray:
+        """
+        Gets the adjacency matrix
+        """
+        # Create space
+        adj_matrix = np.zeros((self.num_segments, self.num_segments), dtype=np.int64)
+
+        # Assign map
+        map = self.superpixels - 1
+
+        # Iterate over each cuboid and add edges
+        for i in range(map.shape[0]):
+            for j in range(map.shape[1]):
+                if i + 1 < map.shape[0] and map[i, j] != map[i + 1, j]:
+                    adj_matrix[map[i, j], map[i + 1, j]] = 1
+                    adj_matrix[map[i + 1, j], map[i, j]] = 1
+                if j + 1 < map.shape[1] and map[i, j] != map[i, j + 1]:
+                    adj_matrix[map[i, j], map[i, j + 1]] = 1
+                    adj_matrix[map[i, j + 1], map[i, j]] = 1
+                if i + 1 < map.shape[0] and j + 1 < map.shape[1] and map[i, j] != map[i + 1, j + 1]:
+                    adj_matrix[map[i, j], map[i + 1, j + 1]] = 1
+                    adj_matrix[map[i + 1, j + 1], map[i, j]] = 1
+                
+        
+        return adj_matrix

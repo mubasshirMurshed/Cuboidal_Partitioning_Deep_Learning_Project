@@ -19,7 +19,7 @@ class CuPIDPartition:
             sample = np.expand_dims(sample, -1)
         c = CuPID(sample)
         c.partition(self.num_cuboids, b=self.b)
-        return c.cuboids
+        return c.cuboids, c
     
 
 class CuPIDTransform:
@@ -48,7 +48,7 @@ class SLICPartition:
             sample = np.expand_dims(sample, -1)
         s = SLIC(sample)
         s.partition(N=self.num_segments)
-        return s.segments
+        return s.segments, s
 
 
 class SLICTransform:

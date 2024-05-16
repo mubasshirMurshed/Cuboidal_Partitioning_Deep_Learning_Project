@@ -99,32 +99,11 @@ class CSV_Dataset_Creator:
         if verbose: print(f"{split} dataset files generated.\n")
 
 
-def adjacent(c1, c2) -> bool:
-    """
-    A function that takes two cuboids with four features each:
-        1) x_centre
-        2) y_centre
-        3) width
-        4) height
-    and determines whether the two cuboids are adjacent in x-y
-    cartesian space.
-
-    Args:
-    - c1: Tensor
-        - A tensor of shape (5)
-    - c2: Tensor
-        - A tensor of shape (5) 
-    """
-    x_dist = abs(c1[0] - c2[0])
-    y_dist = abs(c1[1] - c2[1])
-    return (x_dist <= (c1[2] + c2[2])/2) and (y_dist <= (c1[3] + c2[3])/2)
-
-
 # Create function to be ran in parallel
 def obtain_cupid_data(arg):
     # Obtain CuPID data of the image
     i, dataset = arg
-    cupid_table, label = dataset[i]
+    (cupid_table, cupid), label = dataset[i]
     if type(label) != int:
         label = np.array(label).item()
 
@@ -172,33 +151,9 @@ def obtain_cupid_data(arg):
             new_row_entry.append(np.around(np.sqrt(row["sigma2"][j])*255, 2))
 
     # Calculate number of edges present
-    no_of_edges = 0
-    coo_src = []
-    coo_dst = []
-    for i in range(len(cupid_table)):
-        for j in range(len(cupid_table)):
-            if i == j:
-                continue
-            row1 = cupid_table.iloc[i]
-            row2 = cupid_table.iloc[j]
-
-            # Construct cuboid's x_centre, y_centre, width and height
-            c1 = ((row1["size"][1]+1)/2 + row1["start"][1] + 1,
-                (row1["size"][0]+1)/2 + row1["start"][0] + 1,
-                row1["size"][1],
-                row1["size"][0]
-                )
-
-            c2 = ((row2["size"][1]+1)/2 + row2["start"][1] + 1,
-                (row2["size"][0]+1)/2 + row2["start"][0] + 1,
-                row2["size"][1],
-                row2["size"][0]
-                )
-            
-            if adjacent(c1, c2):
-                no_of_edges += 1
-                coo_src.append(-1*row2["order"] - 1)
-                coo_dst.append(-1*row1["order"] - 1)
+    adj_matrix = cupid.adjacency_matrix()
+    no_of_edges = np.sum(adj_matrix)
+    coo_src, coo_dst = np.where(adj_matrix)
 
     # Add the edge information
     new_row_entry.append(no_of_edges)
@@ -210,7 +165,7 @@ def obtain_cupid_data(arg):
 def obtain_slic_data(arg):
     # Obtain SLIC data of the image
     i, dataset = arg
-    slic_table, label = dataset[i]
+    (slic_table, slic), label = dataset[i]
     if type(label) != int:
         label = np.array(label).item()
     
@@ -254,34 +209,10 @@ def obtain_slic_data(arg):
         for _, row in slic_table.iterrows():
             new_row_entry.append(np.around(np.sqrt(row["sigma2"][j])*255, 2))
 
-    # TODO: Calculate number of edges present
-    no_of_edges = 0
-    coo_src = []
-    coo_dst = []
-    for i in range(len(slic_table)):
-        for j in range(len(slic_table)):
-            if i == j:
-                continue
-            row1 = slic_table.iloc[i]
-            row2 = slic_table.iloc[j]
-
-            # Construct cuboid's x_centre, y_centre, width and height
-            c1 = ((row1["size"][1]+1)/2 + row1["start"][1] + 1,
-                (row1["size"][0]+1)/2 + row1["start"][0] + 1,
-                row1["size"][1],
-                row1["size"][0]
-                )
-
-            c2 = ((row2["size"][1]+1)/2 + row2["start"][1] + 1,
-                (row2["size"][0]+1)/2 + row2["start"][0] + 1,
-                row2["size"][1],
-                row2["size"][0]
-                )
-            
-            if adjacent(c1, c2):
-                no_of_edges += 1
-                coo_src.append(-1*row2["order"] - 1)
-                coo_dst.append(-1*row1["order"] - 1)
+    # Calculate number of edges present
+    adj_matrix = slic.adjacency_matrix()
+    no_of_edges = np.sum(adj_matrix)
+    coo_src, coo_dst = np.where(adj_matrix)
 
     # Add the edge information
     new_row_entry.append(no_of_edges)
