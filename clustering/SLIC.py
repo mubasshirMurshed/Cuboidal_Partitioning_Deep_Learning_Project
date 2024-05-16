@@ -14,14 +14,14 @@ class SLIC:
             self.normaliser = np.iinfo(self.dtype).max
 
 
-    def partition(self, N: int, verbose: bool=False) -> pd.DataFrame:
+    def partition(self, N: int, compactness=1, verbose: bool=False) -> pd.DataFrame:
         # Validate N
         if N > self.total_spatial_size:
             if verbose: print(f"{N = } is greater than the image size. N has been set to {self.total_spatial_size}.")
             N = self.total_spatial_size
         
         # Perform SLIC and obtain a mask
-        self.superpixels = slic(self.I, n_segments=N, slic_zero=True)
+        self.superpixels = slic(self.I, n_segments=N, slic_zero=True, compactness=compactness)
         self.num_segments = len(np.unique(self.superpixels))
 
         # Holds information on each segment
