@@ -120,6 +120,9 @@ class SLIC:
                 if i + 1 < map.shape[0] and j + 1 < map.shape[1] and map[i, j] != map[i + 1, j + 1]:
                     adj_matrix[map[i, j], map[i + 1, j + 1]] = 1
                     adj_matrix[map[i + 1, j + 1], map[i, j]] = 1
+                if i + 1 < map.shape[0] and j > 0 and map[i, j] != map[i + 1, j - 1]:
+                    adj_matrix[map[i, j], map[i + 1, j - 1]] = 1
+                    adj_matrix[map[i + 1, j - 1], map[i, j]] = 1
                 
         
         return adj_matrix
