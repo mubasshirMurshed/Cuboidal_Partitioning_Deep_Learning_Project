@@ -7,7 +7,7 @@ This software package has been developed under the Engineering FYP Honours Proje
 The software provides a generalised framework for training classification models using clustering algorithms to form a graph out of images. It has been used specifically to test CuPID based Graph Neural Networks on classification tasks, to study
 any advantages or disadvantages it has. The project has been supported by Associate Professor Mehrtash Harandi, Monash University.
 
-The software can extended quite easily to other datasets as well as other partitioning algorithms that can be translated into a Region Adjacency Graph (RAG).
+The software can extended quite easily to other datasets as well as other partitioning algorithms that can be translated into a Region Adjacency Graph (RAG). The framework also supports many useful tools such as testers and visualisation tools.
 
 ## What does this repository contain?
 This repository contains the collection of files and models used. The dataset being used can be found in the *data* directory.
