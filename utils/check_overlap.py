@@ -1,3 +1,6 @@
+# TODO Transfer comparing mislabelled sets into utilities. Extend tester in training to also do this and save the misalabelled as a 
+# numpy file, that way it cleans up tester as well.
+
 cp_norm = set((247, 290, 321, 359, 412, 445, 449, 450, 497, 511, 582, 726, 791, 882, 938, 947, 1014, 1039, 1044, 1112, 1114, 1181, 
            1182, 1226, 1232, 1247, 1260, 1299, 1331, 1364, 1393, 1414, 1500, 1530, 1549, 1701, 1709, 1737, 1748, 1790, 1868, 1878, 
            1901, 2018, 2035, 2070, 2118, 2130, 2135, 2182, 2185, 2266, 2293, 2387, 2394, 2454, 2462, 2597, 2654, 2713, 2771, 2810,

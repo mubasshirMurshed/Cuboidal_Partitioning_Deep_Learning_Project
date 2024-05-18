@@ -363,66 +363,58 @@ class MNISTGraphDataset_Auto_Parallel(InMemoryDataset):
         print('-' * 20)
 
 
-class GraphDataset_CSV(InMemoryDataset):
-    """
-    In memory dataset class that stores the dataset in a .pt file under
-    root/processed.
+"""
+In memory dataset class that stores the dataset in a .pt file under
+root/dataset/num_segments/processed. Assumes .csv files exist in
+root/dataset/num_segments/raw.
 
-    The class will ignore information if it detects that the .pt file is already
-    created by specifying its name in the processed_file_names attribute.
+The class will ignore information if it detects that the .pt file is already
+created by specifying its name in the processed_file_names attribute.
 
-    Selection of which feature data to include can be done via flags. By default, every value is
-    included.
-    """
-    def __init__(self, root: Optional[str]=None,
-                       dataset: str=None,
-                       split: Optional[str]=None, 
-                       mode: Optional[str]=None, 
-                       num_segments: Optional[int]=None, 
-                       length: Optional[int]=None,
-                       colour: bool=False,
-                       x_centre: bool=False,
-                       y_centre: bool=False,
-                       num_pixels: bool=False,
-                       angle: bool=False,
-                       width: bool=False,
-                       height: bool=False,
-                       stdev: bool=False) -> None:
+Selection of which feature data to include can be done via flags. By default, every value is
+included.
+"""
+class Graph_Dataset_CSV(InMemoryDataset):
+    
+    def __init__(self, root: str, name: str, split: str, mode: str, num_segments: int, length: int | None=None,
+                       x_center: bool=False, y_center: bool=False, colour: bool=False, width: bool=False, height: bool=False,
+                       num_pixels: bool=False, angle: bool=False, st_dev: bool=False) -> None:
         """
-        Saves attributes and runs super init to do processing and loading of the data in
-        self.data.
+        Saves attributes and runs super init to do processing and loading of the data done by super class.
 
         Args:
-        - root: str | None
-            - The string path to the root folder where the data files are
-        - name: str | None
-            - The group name of the file to find
-        - mode: str | None
-            - The type of dataset being loaded, CP (cuboidal partition) or SP
-              (superpixel partition). Other modes also exist such as RP (regular
-              partition).
-        - partition_limit: int | None
-            - The upper limit of number of segments allowed for each image
+        - root: str
+            - The string path to the root folder where all the data is
+        - name: str
+            - The name of the dataset to look for
+        - split: str
+            - Train/validation/test
+        - mode: str
+            - The type of partitioning
+        - num_segments: int
+            - How many segments to partition the dataset into
         - length: int | None
             - Length of dataset to consider
+        - x_center: bool
+            - Whether to include x-center data in each graph node
+        - y_center: bool
+            - Whether to include y-center data in each graph node
         - colour: bool
             - Whether to include colour data in each graph node
-        - x_centre: bool
-            - Whether to include x-centre data in each graph node
-        - y_centre: bool
-            - Whether to include y centre data in each graph node
         - num_pixels: bool
-            - Whether to include number of pixels of a cuboid in its corresponding graph node
+            - Whether to include size data in each graph node
         - angle: bool
-            - Whether to include the angle of the cuboid in its corresponding graph node
+            - Whether to include angle data in each graph node
         - width: bool
-            - Whether to include the width of the cuboid in its corresponding graph node
+            - Whether to include width data in each graph node
         - height: bool
-            - Whether to include the height of the cuboid in its corresponding graph node
+            - Whether to include height data in each graph node
+        - st_dev: bool
+            - Whether to include standard deviation data in each graph node
         """
         # Save attributes
-        self.root = root + dataset + "/" + str(num_segments) + "/"
-        self.dataset_name = dataset
+        self.root = root + name + "/" + str(num_segments) + "/"
+        self.name = name
         self.length = length if length is not None else 10000           # TODO: Fix this to be more accurate, and for setting actual short lengths
         self.mode = mode
         self.num_segments = num_segments
@@ -430,19 +422,19 @@ class GraphDataset_CSV(InMemoryDataset):
 
         # Ablation attributes
         self.colour = colour
-        self.x_centre = x_centre
-        self.y_centre = y_centre
+        self.x_center = x_center
+        self.y_center = y_center
         self.num_pixels = num_pixels
         self.angle = angle
         self.width = width
         self.height = height
-        self.stdev = stdev
+        self.stdev = st_dev
 
         # Create ablation code string
         self.ablation_code = ""
-        if self.x_centre:
+        if self.x_center:
             self.ablation_code += 'X'
-        if self.y_centre:
+        if self.y_center:
             self.ablation_code += 'Y'
         if self.colour:
             self.ablation_code += 'C'
@@ -471,7 +463,7 @@ class GraphDataset_CSV(InMemoryDataset):
         our data is already given as csv files.
         """
         directory = os.listdir(f"{self.root}/raw")
-        filtered = filter(lambda file: self.split in file and f"-{self.mode}-" in file and f"-{str(self.num_segments)}-" in file, directory)
+        filtered = filter(lambda file: self.split in file and f"-{self.mode}-" in file, directory)
         return list(filtered)
 
 
@@ -480,15 +472,15 @@ class GraphDataset_CSV(InMemoryDataset):
         """
         The name of the file which has the processed and saved data.
         """
-        return [f'{self.dataset_name}{self.split}-{self.mode}-{self.num_segments}-{self.length*len(self.raw_file_names)}-{self.ablation_code}.pt'] #TODO: Actual length not calculated correctly
+        return [f'{self.name}{self.split}-{self.mode}-{self.num_segments}-{self.length*len(self.raw_file_names)}-{self.ablation_code}.pt'] #TODO: Actual length not calculated correctly
 
 
     def process(self):
         """
         Reads in the data from the given filename and loads it all in an array of Data objects
-        which is then collated to save easy in a .pt file.
+        which is then collated in a .pt file.
 
-        This features data extraction from the csv file,, normalization of the values, and the creation
+        This features data extraction from the csv file, normalization of the values to 0-1, and the creation
         of the Data object for each image, including its feature matrix, adjacency matrix and label.
         """
         # Give UI information
@@ -523,22 +515,24 @@ class GraphDataset_CSV(InMemoryDataset):
                 feature_matrix = []
                 num_nodes = int(img_data[3])
                 num_colours = int(img_data[4])
-                shape = (int(img_data[5]), int(img_data[6]))
+                shape_of_data = (int(img_data[5]), int(img_data[6]))
                 start = 7
                 num_features = len(self.ablation_code)
+
+                # Add more based on features that are not scalars
                 if self.colour:
                     num_features += (num_colours - 1)
                 if self.stdev:
                     num_features += (num_colours - 1)
 
                 # Add values into feature matrix
-                if self.x_centre:
+                if self.x_center:
                     X = img_data[start:start+num_nodes]
-                    X = X / shape[1]  # Normalization
+                    X = X / shape_of_data[1]  # Normalization
                     feature_matrix.extend(X)
-                if self.y_centre:
+                if self.y_center:
                     Y = img_data[start+num_nodes:start+num_nodes*2]
-                    Y = Y / shape[0]  # Normalization
+                    Y = Y / shape_of_data[0]  # Normalization
                     feature_matrix.extend(Y)
                 if self.colour:
                     for j in range(num_colours):
@@ -547,7 +541,7 @@ class GraphDataset_CSV(InMemoryDataset):
                         feature_matrix.extend(C)
                 if self.num_pixels:
                     N = img_data[start+num_nodes*(2+num_colours):start+num_nodes*(3+num_colours)]
-                    N = N / np.prod(shape)  # Normalization
+                    N = N / np.prod(shape_of_data)  # Normalization
                     feature_matrix.extend(N)
                 if self.angle:
                     A = img_data[start+num_nodes*(3+num_colours):start+num_nodes*(4+num_colours)]
@@ -555,11 +549,11 @@ class GraphDataset_CSV(InMemoryDataset):
                     feature_matrix.extend(A)
                 if self.width:
                     W = img_data[start+num_nodes*(4+num_colours):start+num_nodes*(5+num_colours)]
-                    W = W / shape[1]  # Normalization
+                    W = W / shape_of_data[1]  # Normalization
                     feature_matrix.extend(W)
                 if self.height:
                     H = img_data[start+num_nodes*(5+num_colours):start+num_nodes*(6+num_colours)]
-                    H = H / shape[0]  # Normalization
+                    H = H / shape_of_data[0]  # Normalization
                     feature_matrix.extend(H)
                 if self.stdev:
                     for j in range(num_colours):
@@ -567,6 +561,7 @@ class GraphDataset_CSV(InMemoryDataset):
                         S = S / 255  # Normalization
                         feature_matrix.extend(S)
                 
+                # Construct node feature matrix throgh reshaping and transposing
                 x = torch.tensor(feature_matrix).reshape((num_features, num_nodes)).t().float()
                 
                 # Create edge COO sparse matrix
@@ -578,7 +573,7 @@ class GraphDataset_CSV(InMemoryDataset):
                 # Get label
                 lbl = torch.tensor(int(img_data[1]))
 
-                # Save tensors in Data object and return
+                # Save tensors in Data object and return    # TODO: Add pos attribute to allow PyG Vision Transforms
                 data_list[i] = Data(x=x, y=lbl, edge_index=edge_index)
             
             # Add data list to overall list

@@ -1,15 +1,58 @@
 import os
 from transforms import CuPIDPartition, SLICPartition
 from data_classes import MyMNIST, MyCIFAR_10, MyMedMNIST, MyOmniglot
-from typing import Optional
 import csv
 import math
 from tqdm import tqdm
 import multiprocessing as mp
 import numpy as np
+from torch.utils.data import Dataset
+from typing import Tuple
 
+# TODO: Add replace/overwiter functionality, which skips the exist check and overwrites anyway.
+# TODO: Use Enums to support dataset, split, and modes rather than strings, OR think of polymorphism
+# TODO: Throw errors instead of returning for the error cases
+# TODO: Change processor to num_workers argument able to passed
+# TODO: Put partition_to_graph function as partition method obtained from inheritance
+
+"""
+A class that is responsible for creating the multiple csv files containing the partitioned data
+for each split. This means a csv file will be created for each split and can be created based on
+the partitioning scheme. The point is to save on partitioning processing time for neural network
+training. Only 2D images are supported. Any feature length is supported. 
+
+Each row in a csv file contains the information of 1 sample. The columns follow a specific reading format.
+First, the ID and label of the data is written. Then the PSNR is recorded, followed by the number of segments
+created, the number of features of the data (RGB = 3 features). Then the shape of the data. Then if N = number 
+of segments, it is followed by N number of data for various pieces of data, where each value corresponds to a
+particular segment. Finally, the number of edges in the adj matrix is encoded followed by the edges in COO format. 
+
+If the first instance of a csv file is detected for a given split and partition, it will stop
+and assume the files already exist.
+"""
 class CSV_Dataset_Creator:
-    def __init__(self, root: Optional[str], dataset: str, num_segments: Optional[int]=None, mode: Optional[str]=None, max_entries_per_file:int=10000, chunksize=200) -> None:
+    def __init__(self, root: str, dataset: str, num_segments: int, mode: str, max_entries_per_file: int=10000, chunksize: int=200) -> None:
+        """
+        Saves attributes, and creates necessary extra data based on mode selected and dataset. Creates links to the raw splits of 
+        the selected datasets with the appropriate partitioning algorithm provided as a transform.
+
+        Args:
+        - root: str
+            - The root directory of where the csv files should be stored. This will be appended with subdirectories involving
+              the dataset name and the number of segments
+        - dataset: str
+            - Name of dataset to extract information from
+        - num_segments: int
+            - How many clusters to partition the data into
+        - mode: str
+            - Partitioning mode
+        - max_entries_per_file: int
+            - A variable to control the number of entries per csv file created. For example if the training dataset contained 20000 samples
+              and you set this variable to 1000, it would result in 20 csv files being created for that dataset.
+        - chunksize: int
+            - A variable to control the parallelism of splitting up the pre-processing amongst several cores. Set this to higher values
+              for more intense datasets/partitions.
+        """
         # Save attributes and path information
         self.num_segments = num_segments
         self.data_source = root + dataset                                           # The path to dataset provided
@@ -31,7 +74,7 @@ class CSV_Dataset_Creator:
             return
 
         # Data Source with Partition transform
-        match dataset:
+        match dataset.lower():
             case "mnist":
                 self.dataset = MyMNIST(transform)
             case "cifar":
@@ -49,12 +92,19 @@ class CSV_Dataset_Creator:
         self.val_dataset = self.dataset.validation()
         self.test_dataset = self.dataset.test()
 
-    def create_csv_files(self, verbose:bool=False) -> None:
+    def create_csv_files(self, verbose: bool=False) -> None:
+        """
+        Creates all csv files according to each split.
+        """
         self.create_csv_file(self.train_dataset, "Train", verbose)
         self.create_csv_file(self.val_dataset, "Validation", verbose)
         self.create_csv_file(self.test_dataset, "Test", verbose)
 
-    def create_csv_file(self, dataset, split: str, verbose: bool=False) -> None:
+    def create_csv_file(self, dataset: Dataset, split: str, verbose: bool=False) -> None:
+        """
+        For a given split and a dataset provided, transform its full contents into partitioned data
+        which is then written in a csv file for easy extraction from an in-memory dataset.
+        """
         # Filename of where to write
         filepath = f"{self.root}{self.dataset_name}{split}-{self.mode}-{self.num_segments}-1.csv"
 
@@ -87,7 +137,8 @@ class CSV_Dataset_Creator:
                 file = open(filepath, 'w', newline='')
                 writer = csv.writer(file)
                 writer.writerow(["Sample_No", "Label", "PSNR", "No_of_Nodes", "No_of_Features", "Length_X", "Length_Y", 
-                                 "Centre_Xs", "Centre_Ys", "Values", "No_of_Pixels", "BoxAngles", "BoxWidths", "BoxHeights", "Standard_Deviations", "No_of_edges", "COO_src", "COO_dst"])
+                                 "Center_Xs", "Center_Ys", "Values", "No_of_Pixels", "BoxAngles", "BoxWidths", "BoxHeights", 
+                                 "Standard_Deviations", "No_of_edges", "COO_src", "COO_dst"])
 
                 # Add all data entries to csv file
                 for row in data:
@@ -99,15 +150,22 @@ class CSV_Dataset_Creator:
         if verbose: print(f"{split} dataset files generated.\n")
 
 
-# Create function to be ran in parallel
-def obtain_cupid_data(arg):
+def obtain_cupid_data(arg: Tuple[int, Dataset]):
+    """
+    Given a dataset sample partitioned by CuPID, extract the relevant information to be written
+    into a csv file row all into one list. This function is expected to be ran in parallel using
+    Python multiprocessing.Pool.imap.
+    """
     # Obtain CuPID data of the image
     i, dataset = arg
-    (cupid_table, cupid), label = dataset[i]
+    cupid_object, label = dataset[i]
+
+    # If label is not an integer (inside an array) extract it
     if type(label) != int:
         label = np.array(label).item()
 
     # Filter table to only contain leaf cuboids
+    cupid_table = cupid_table.cuboids
     cupid_table = cupid_table[cupid_table["order"] < 0].sort_values(by="order", ascending=False)
     
     # Initialise first few column values
@@ -135,7 +193,7 @@ def obtain_cupid_data(arg):
 
     # Add in box angles for each cuboid
     for _, row in cupid_table.iterrows():
-        new_row_entry.append(round(math.atan(row["size"][0]/row["size"][1])*180/math.pi, 2))        # This is hardcoded to 2D
+        new_row_entry.append(round(math.atan(row["size"][0]/row["size"][1])*180/math.pi, 2))  # This is hardcoded to 2D
 
     # Add in box width for each cuboid
     for _, row in cupid_table.iterrows():
@@ -151,7 +209,7 @@ def obtain_cupid_data(arg):
             new_row_entry.append(np.around(np.sqrt(row["sigma2"][j])*255, 2))
 
     # Calculate number of edges present
-    adj_matrix = cupid.adjacency_matrix()
+    adj_matrix = cupid_object.adjacency_matrix()
     no_of_edges = np.sum(adj_matrix)
     coo_src, coo_dst = np.where(adj_matrix)
 
@@ -162,55 +220,61 @@ def obtain_cupid_data(arg):
 
     return new_row_entry
 
-def obtain_slic_data(arg):
+def obtain_slic_data(arg: Tuple[int, Dataset]):
+    """
+    Given a dataset sample partitioned by SLIC, extract the relevant information to be written
+    into a csv file row all into one list. This function is expected to be ran in parallel using
+    Python multiprocessing.Pool.imap.
+    """
     # Obtain SLIC data of the image
     i, dataset = arg
-    (slic_table, slic), label = dataset[i]
+    slic_object, label = dataset[i]
     if type(label) != int:
         label = np.array(label).item()
     
     # Initialise first few column values
+    slic_table = slic_object.segments
     shape = dataset.shape
     no_of_nodes = len(slic_table)
     no_of_features = shape[-1]
     new_row_entry = [i, label, 0, no_of_nodes, no_of_features, shape[0], shape[1]]
 
-    # Add in center x coordinates cuboid
+    # Add in center x coordinates segment
     for _, row in slic_table.iterrows():
         new_row_entry.append(row["x_center"])
 
-    # Add in center y coordinates for each cuboid
+    # Add in center y coordinates for each segment
     for _, row in slic_table.iterrows():
         new_row_entry.append(row["y_center"])
 
-    # Add in colour values for each cuboid (restore float to be between 0-255)
+    # Add in colour values for each segment (restore float to be between 0-255)
     for j in range(no_of_features):
         for _, row in slic_table.iterrows():
             new_row_entry.append(np.around(row["mu"][j]*255, 2))
     
-    # Add in num of pixels for each cuboid
+    # Add in num of pixels for each segment
     for _, row in slic_table.iterrows():
         new_row_entry.append(row["n"])
 
-    # Add in box angles for each cuboid
+    # Add in box angles for each segment
     for _, row in slic_table.iterrows():
         new_row_entry.append(round(math.atan(row["height"]/row["width"])*180/math.pi, 2))        # This is hardcoded to 2D
 
-    # Add in box width for each cuboid
+    # Add in box width for each segment
     for _, row in slic_table.iterrows():
         new_row_entry.append(row["width"])
 
-    # Add in box height for each cuboid
+    # Add in box height for each segment
     for _, row in slic_table.iterrows():
         new_row_entry.append(row["height"])
 
-    # Add in standard deviation for each cuboid w.r.t original sections (scaled to 255 colour space)
+    # Add in standard deviation for each segment w.r.t original sections (scaled to 255 colour space)
     for j in range(no_of_features):
         for _, row in slic_table.iterrows():
             new_row_entry.append(np.around(np.sqrt(row["sigma2"][j])*255, 2))
 
     # Calculate number of edges present
-    adj_matrix = slic.adjacency_matrix()
+    adj_matrix = slic_object.adjacency_matrix()
     no_of_edges = np.sum(adj_matrix)
     coo_src, coo_dst = np.where(adj_matrix)
 
@@ -222,9 +286,12 @@ def obtain_slic_data(arg):
     return new_row_entry
 
 
+"""
+Script to create the CSV files.
+"""
 import time
 def main():
-    creator = CSV_Dataset_Creator("data/csv/", "mnist", 16, "CP", chunksize=1)
+    creator = CSV_Dataset_Creator("data/csv/", "omniglot", 64, "CP", chunksize=1)
     start = time.perf_counter()
     creator.create_csv_files(verbose=True)
     end = time.perf_counter()

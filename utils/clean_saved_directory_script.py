@@ -1,6 +1,15 @@
 import os
 import shutil
 
+"""
+This is a helpful script that will delete all empty runs and folders in the saved directory, in the
+event there are multiple of such clutter.
+
+Expected directory level:
+
+saved/DataModule/Abalation/Model/Runs/Checkpoints
+"""
+
 def main():
     root = os.getcwd() + "/saved/"
     for dm_dir in os.listdir(root):
