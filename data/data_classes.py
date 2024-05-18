@@ -1,15 +1,15 @@
-import torch
-from torch.utils.data import random_split
+from torch.utils.data import Subset
 from torchvision.datasets import MNIST, CIFAR10, DatasetFolder
 from torchvision import transforms
 from torchvision.datasets.folder import default_loader
 from medmnist import OrganAMNIST
 import os
+import numpy as np
 
-MNIST_ROOT = "data/source/MNIST"
-CIFAR_10_ROOT = "data/source/CIFAR-10/"
-MEDMNIST_ROOT = "data/source/MedMNIST/"
-OMNIGLOT_ROOT = "data/source/Omniglot/"
+MNIST_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\MNIST"
+CIFAR_10_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\CIFAR-10"
+MEDMNIST_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\MedMNIST"
+OMNIGLOT_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\Omniglot"
 
 class Dataset:
     def __init__(self):
@@ -29,10 +29,11 @@ class Dataset:
 
 class MyMNIST(Dataset):
     def __init__(self, transform=None) -> None:
-        # TODO: Add fixed deterministic logic through file reading
         ds = MNIST(root=MNIST_ROOT, train=True, transform=transform)
-        generator = torch.Generator().manual_seed(42)
-        self.train_ds, self.validation_ds = random_split(ds, [50000, 10000], generator=generator)
+        train_idx = np.load("data/split_indicies/MNIST_Train_Idx.npy")
+        val_idx = np.load("data/split_indicies/MNIST_Validation_Idx.npy")
+        self.train_ds = Subset(ds, train_idx)
+        self.validation_ds = Subset(ds, val_idx)
         self.test_ds = MNIST(root=MNIST_ROOT, train=False, transform=transform)
         self.shape = (28, 28, 1)
         super().__init__()
@@ -40,10 +41,11 @@ class MyMNIST(Dataset):
 
 class MyCIFAR_10(Dataset):
     def __init__(self, transform=None) -> None:
-        # TODO: Add fixed deterministic logic through file reading
         ds = CIFAR10(root=CIFAR_10_ROOT, train=True, transform=transform)
-        generator = torch.Generator().manual_seed(42)
-        self.train_ds, self.validation_ds = random_split(ds, [50000, 10000], generator=generator)
+        train_idx = np.load("data/split_indicies/CIFAR_Train_Idx.npy")
+        val_idx = np.load("data/split_indicies/CIFAR_Validation_Idx.npy")
+        self.train_ds = Subset(ds, train_idx)
+        self.validation_ds = Subset(ds, val_idx)
         self.test_ds = CIFAR10(root=CIFAR_10_ROOT, train=False, transform=transform)
         self.shape = (32, 32, 3)
         super().__init__()
