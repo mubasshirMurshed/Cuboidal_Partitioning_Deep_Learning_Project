@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 from torchvision.datasets import MNIST
-from data.datamodules import Graph_DataModule
+from data.datamodules import Graph_DataModule_CSV
 from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionMatrix
 from torchmetrics import MetricCollection
 
@@ -27,7 +27,7 @@ test_metrics = MetricCollection( {
 
 # Initialise datamodule and model
 features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True, "st_dev":True}
-data_module = Graph_DataModule(name="mnist", num_segments=32, batch_size=100, mode="SP", features=features)
+data_module = Graph_DataModule_CSV(name="mnist", num_segments=32, batch_size=100, mode="SP", features=features)
 model = MNIST_GAT2(num_features=data_module.train_set.num_features, num_classes=num_classes)
 
 # Load model

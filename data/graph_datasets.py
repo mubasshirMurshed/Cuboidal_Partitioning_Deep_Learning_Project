@@ -1,13 +1,12 @@
 # Imports
 import torch
-from torch_geometric.data import InMemoryDataset
-from torch_geometric.data import Data
+from torch_geometric.data import Data, Dataset, InMemoryDataset
 import pandas as pd
 from tqdm import tqdm
 import numpy as np
 import os
 from typing import Optional
-from .transforms import CuPIDPartition
+from .transforms import CuPIDPartition, SLICPartition
 from torchvision.datasets import MNIST
 from torch.utils.data import random_split
 import math
@@ -16,6 +15,60 @@ from enums import Split, Partition
 
 # TODO: Fourth form that is super on the fly, not in memory
 # TODO: Clean up the other two datasets
+
+class Graph_Dataset(Dataset):
+    def __init__(self, dataset, mode: Partition, num_segments: int, x_center: bool=False,
+                       y_center: bool=False, colour: bool=False, width: bool=False, height: bool=False, 
+                       num_pixels: bool=False, angle: bool=False, st_dev: bool=False) -> None:
+        # Set up attributes
+        super().__init__()
+        self.dataset = dataset
+        self.mode = mode
+        self.num_segments = num_segments
+        self.colour = colour
+        self.x_center = x_center
+        self.y_center = y_center
+        self.num_pixels = num_pixels
+        self.angle = angle
+        self.width = width
+        self.height = height
+        self.stdev = st_dev
+
+        # Create ablation code string
+        self.ablation_code = ""
+        if self.x_center:
+            self.ablation_code += 'X'
+        if self.y_center:
+            self.ablation_code += 'Y'
+        if self.colour:
+            self.ablation_code += 'C'
+        if self.num_pixels:
+            self.ablation_code += 'N'
+        if self.angle:
+            self.ablation_code += 'A'
+        if self.width:
+            self.ablation_code += 'W'
+        if self.height:
+            self.ablation_code += 'H'
+        if self.stdev:
+            self.ablation_code += 'S'
+
+        if self.mode is Partition.CuPID:
+            self.partition = CuPIDPartition(self.num_segments)
+        elif self.mode is Partition.SLIC:
+            self.partition = SLICPartition(self.num_segments)
+        else:
+            print("Error, mode is not recognised or supported.")
+            return
+
+    def len(self) -> int:
+        return len(self.dataset)
+    
+    def get(self, idx) -> Data:
+        img, label = self.dataset[idx]
+        table = self.partition(img)
+        return cupid_to_graph(table, label, self.ablation_code)
+
 
 class MNISTGraphDataset_Auto(InMemoryDataset):
     """
@@ -612,7 +665,7 @@ def adjacent(c1, c2) -> bool:
     return (x_dist <= (c1[2] + c2[2])/2) and (y_dist <= (c1[3] + c2[3])/2)
 
 
-def cupid_to_graph(arg):
+def cupid_to_graphOld(arg):
     i, dataset, ablation_code = arg
 
     # Current CuPID data
@@ -677,6 +730,56 @@ def cupid_to_graph(arg):
                 coo_src.append(-1*row2["order"] - 1)
                 coo_dst.append(-1*row1["order"] - 1)
     edge_index = torch.tensor([coo_src, coo_dst], dtype=torch.int64)
+
+    # Create Data object
+    label = torch.tensor(int(label))
+    return Data(x=x, y=label, edge_index=edge_index)
+
+
+#TODO This is a mess, linked to the other 2 datasets and has hardcoded non extensible changes, similar to obtain_cupid_data but not quite. Can help
+# modularise the main classes
+def cupid_to_graph(cupid_object, label, ablation_code):
+    # If label is not an integer (inside an array) extract it
+    if type(label) != int:
+        label = np.array(label).item()
+    
+    # Filter table to only contain leaf cuboids
+    cupid_table = cupid_object.cuboids
+    cupid_table = cupid_table[cupid_table["order"] < 0].sort_values(by="order", ascending=False)
+    no_of_nodes = len(cupid_table)
+
+    # Fill in feature matrix
+    x = torch.zeros((no_of_nodes, len(ablation_code)))
+    for i in range(len(cupid_table)):
+        row = cupid_table.iloc[i]
+        for j in range(len(ablation_code)):
+            if ablation_code[j] == 'X':
+                x[i][j] = (row["size"][1]+1)/2 + row["start"][1] + 1
+                x[i][j] /= 28
+            elif ablation_code[j] == 'Y':
+                x[i][j] = (row["size"][0]+1)/2 + row["start"][0] + 1
+                x[i][j] /= 28
+            elif ablation_code[j] == 'C':
+                x[i][j] =  round(row["mu"].item())
+                x[i][j] /= 255
+            elif ablation_code[j] == 'N':
+                x[i][j] =  row["n"]
+                x[i][j] /= (28*28)
+            elif ablation_code[j] == 'A':
+                x[i][j] = round(math.atan(row["size"][0]/row["size"][1])*180/math.pi, 2)
+                x[i][j] /= 90
+            elif ablation_code[j] == 'W':
+                x[i][j] = row["size"][1]
+                x[i][j] /= 28
+            elif ablation_code[j] == 'H':
+                x[i][j] = row["size"][0]
+                x[i][j] /= 28
+    x = x.float()
+
+    # Find edges in COO format
+    adj_matrix = cupid_object.adjacency_matrix()
+    coo_src, coo_dst = np.where(adj_matrix)
+    edge_index = torch.tensor(np.array([coo_src, coo_dst]), dtype=torch.int64)
 
     # Create Data object
     label = torch.tensor(int(label))
