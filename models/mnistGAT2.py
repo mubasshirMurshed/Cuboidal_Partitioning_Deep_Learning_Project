@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch_geometric.nn.aggr import MeanAggregation, StdAggregation, MaxAggregation
 
 class MNIST_GAT2(torch.nn.Module):
-    def __init__(self, num_features: int):
+    def __init__(self, num_features: int, num_classes: int):
         # Init parent
         super().__init__()
 
@@ -22,7 +22,7 @@ class MNIST_GAT2(torch.nn.Module):
         # Output layer
         self.fc1 = nn.Linear(64*3, 64)
         self.dropout = nn.Dropout()
-        self.fc2 = nn.Linear(64, 10)
+        self.fc2 = nn.Linear(64, num_classes)
 
 
     def forward(self, x, edge_index, batch_index):

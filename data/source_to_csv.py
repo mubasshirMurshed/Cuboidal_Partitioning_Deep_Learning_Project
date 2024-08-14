@@ -1,19 +1,20 @@
 import os
 from transforms import CuPIDPartition, SLICPartition
-from data_classes import MyMNIST, MyCIFAR_10, MyMedMNIST, MyOmniglot
+from data_classes import SourceDataset, MyMNIST, MyCIFAR_10, MyMedMNIST, MyOmniglot
 import csv
 import math
 from tqdm import tqdm
 import multiprocessing as mp
 import numpy as np
 from torch.utils.data import Dataset
-from typing import Tuple
+from typing import Tuple, Type
+from enums import Split, Partition
 
 # TODO: Add replace/overwiter functionality, which skips the exist check and overwrites anyway.
-# TODO: Use Enums to support dataset, split, and modes rather than strings, OR think of polymorphism
 # TODO: Throw errors instead of returning for the error cases
-# TODO: Change processor to num_workers argument able to passed
+# TODO: Change processes to num_workers argument able to passed
 # TODO: Put partition_to_graph function as partition method obtained from inheritance
+# TODO: Move file writing out of mp pool
 
 """
 A class that is responsible for creating the multiple csv files containing the partitioned data
@@ -31,20 +32,20 @@ If the first instance of a csv file is detected for a given split and partition,
 and assume the files already exist.
 """
 class CSV_Dataset_Creator:
-    def __init__(self, root: str, dataset: str, num_segments: int, mode: str, max_entries_per_file: int=10000, chunksize: int=200) -> None:
+    def __init__(self, root: str, dataset: Type[SourceDataset], num_segments: int, mode: Partition, max_entries_per_file: int=10000, chunksize: int=200) -> None:
         """
         Saves attributes, and creates necessary extra data based on mode selected and dataset. Creates links to the raw splits of 
         the selected datasets with the appropriate partitioning algorithm provided as a transform.
 
         Args:
         - root: str
-            - The root directory of where the csv files should be stored. This will be appended with subdirectories involving
+            - The root directory of where the csv files should be stored. This will be prepended with subdirectories involving
               the dataset name and the number of segments
-        - dataset: str
-            - Name of dataset to extract information from
+        - dataset: SourceDataset
+            - Class constructor for a raw dataset in data/source/
         - num_segments: int
             - How many clusters to partition the data into
-        - mode: str
+        - mode: Partition
             - Partitioning mode
         - max_entries_per_file: int
             - A variable to control the number of entries per csv file created. For example if the training dataset contained 20000 samples
@@ -55,58 +56,45 @@ class CSV_Dataset_Creator:
         """
         # Save attributes and path information
         self.num_segments = num_segments
-        self.data_source = root + dataset                                           # The path to dataset provided
+        self.dataset_name = dataset.name
+        self.data_source = root + dataset.name                                           # The path to dataset provided
         self.root = root + dataset + "/" + f"{self.num_segments}" + "/raw/"         # The dataset processed files will be saved here
         self.chunksize = chunksize
-        
-        # Partitioning mode (CP/SP)
-        self.mode = mode
         self.max_entries_per_file = max_entries_per_file
-        self.dataset_name = dataset
-
+        
         # Determine partitioning transform
-        if self.mode == "CP":
+        self.mode = mode
+        if self.mode is Partition.CuPID:
             transform = CuPIDPartition(self.num_segments)
-        elif self.mode == "SP":
+        elif self.mode is Partition.SLIC:
             transform = SLICPartition(self.num_segments)
         else:
             print("Error, mode is not recognised or supported.")
             return
 
         # Data Source with Partition transform
-        match dataset.lower():
-            case "mnist":
-                self.dataset = MyMNIST(transform)
-            case "cifar":
-                self.dataset = MyCIFAR_10(transform)
-            case "medmnist":
-                self.dataset = MyMedMNIST(transform)
-            case "omniglot":
-                self.dataset = MyOmniglot(transform)
-            case _:
-                print("Error, dataset name not recognised or supported.")
-                return
+        self.dataset = dataset(transform)
 
         # Get splits
-        self.train_dataset = self.dataset.train()
-        self.val_dataset = self.dataset.validation()
-        self.test_dataset = self.dataset.test()
+        self.train_dataset = self.dataset.train_dataset()
+        self.val_dataset = self.dataset.validation_dataset()
+        self.test_dataset = self.dataset.test_dataset()
 
     def create_csv_files(self, verbose: bool=False) -> None:
         """
         Creates all csv files according to each split.
         """
-        self.create_csv_file(self.train_dataset, "Train", verbose)
-        self.create_csv_file(self.val_dataset, "Validation", verbose)
-        self.create_csv_file(self.test_dataset, "Test", verbose)
+        self.create_csv_file(self.train_dataset, Split.TRAIN, verbose)
+        self.create_csv_file(self.val_dataset, Split.VALIDATION, verbose)
+        self.create_csv_file(self.test_dataset, Split.TEST, verbose)
 
-    def create_csv_file(self, dataset: Dataset, split: str, verbose: bool=False) -> None:
+    def create_csv_file(self, dataset: Dataset, split: Split, verbose: bool=False) -> None:
         """
         For a given split and a dataset provided, transform its full contents into partitioned data
         which is then written in a csv file for easy extraction from an in-memory dataset.
         """
         # Filename of where to write
-        filepath = f"{self.root}{self.dataset_name}{split}-{self.mode}-{self.num_segments}-1.csv"
+        filepath = f"{self.root}/{self.dataset_name}-{split.value}-{self.mode.value}-{self.num_segments}-1.csv"
 
         # Check that the directory exists and if not, create it
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -117,7 +105,7 @@ class CSV_Dataset_Creator:
             return
         
         # Create multiprocessing pool
-        with mp.Pool(processes=24) as pool:
+        with mp.Pool(processes=28) as pool:
             if verbose: print(f"Generating {split} dataset files...")
             
             # Iterate over every chunk of data
@@ -127,13 +115,13 @@ class CSV_Dataset_Creator:
                 end = min((i+1)*self.max_entries_per_file, len(dataset))
 
                 # Obtain the relevant CuPID data of all images in this chunk in parallel
-                if self.mode == "CP":
+                if self.mode is Partition.CuPID:
                     data = list(tqdm(pool.imap(obtain_cupid_data, zip(range(start, end), [dataset]*(end - start)), self.chunksize), total=end-start, position=1, leave=False, disable=not verbose))               
-                elif self.mode == "SP":
+                elif self.mode is Partition.SLIC:
                     data = list(tqdm(pool.imap(obtain_slic_data, zip(range(start, end), [dataset]*(end - start)), self.chunksize), total=end-start, position=1, leave=False, disable=not verbose)) 
 
                 # File writing
-                filepath = f"{self.root}{self.dataset_name}{split}-{self.mode}-{self.num_segments}-{i+1}.csv"
+                filepath = f"{self.root}/{self.dataset_name}-{split.value}-{self.mode.value}-{self.num_segments}-{i+1}.csv"
                 file = open(filepath, 'w', newline='')
                 writer = csv.writer(file)
                 writer.writerow(["Sample_No", "Label", "PSNR", "No_of_Nodes", "No_of_Features", "Length_X", "Length_Y", 
@@ -165,11 +153,11 @@ def obtain_cupid_data(arg: Tuple[int, Dataset]):
         label = np.array(label).item()
 
     # Filter table to only contain leaf cuboids
-    cupid_table = cupid_table.cuboids
+    cupid_table = cupid_object.cuboids
     cupid_table = cupid_table[cupid_table["order"] < 0].sort_values(by="order", ascending=False)
     
     # Initialise first few column values
-    shape = dataset.shape
+    shape = dataset.data_shape
     no_of_nodes = len(cupid_table)
     no_of_features = shape[-1]
     new_row_entry = [i, label, 0, no_of_nodes, no_of_features, shape[0], shape[1]]
@@ -234,18 +222,18 @@ def obtain_slic_data(arg: Tuple[int, Dataset]):
     
     # Initialise first few column values
     slic_table = slic_object.segments
-    shape = dataset.shape
+    shape = dataset.data_shape
     no_of_nodes = len(slic_table)
     no_of_features = shape[-1]
     new_row_entry = [i, label, 0, no_of_nodes, no_of_features, shape[0], shape[1]]
 
     # Add in center x coordinates segment
     for _, row in slic_table.iterrows():
-        new_row_entry.append(row["x_center"])
+        new_row_entry.append(round(row["x_center"], 2))
 
     # Add in center y coordinates for each segment
     for _, row in slic_table.iterrows():
-        new_row_entry.append(row["y_center"])
+        new_row_entry.append(round(row["y_center"], 2))
 
     # Add in colour values for each segment (restore float to be between 0-255)
     for j in range(no_of_features):
@@ -291,7 +279,7 @@ Script to create the CSV files.
 """
 import time
 def main():
-    creator = CSV_Dataset_Creator("data/csv/", "omniglot", 64, "CP", chunksize=1)
+    creator = CSV_Dataset_Creator("data/csv/", MyOmniglot, 128, "SP", chunksize=10)
     start = time.perf_counter()
     creator.create_csv_files(verbose=True)
     end = time.perf_counter()

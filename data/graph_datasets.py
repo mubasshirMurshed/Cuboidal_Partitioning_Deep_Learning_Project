@@ -12,8 +12,10 @@ from torchvision.datasets import MNIST
 from torch.utils.data import random_split
 import math
 import multiprocessing as mp
+from enums import Split, Partition
 
 # TODO: Fourth form that is super on the fly, not in memory
+# TODO: Clean up the other two datasets
 
 class MNISTGraphDataset_Auto(InMemoryDataset):
     """
@@ -376,7 +378,7 @@ included.
 """
 class Graph_Dataset_CSV(InMemoryDataset):
     
-    def __init__(self, root: str, name: str, split: str, mode: str, num_segments: int, length: int | None=None,
+    def __init__(self, root: str, name: str, split: Split, mode: Partition, num_segments: int, length: int | None=None,
                        x_center: bool=False, y_center: bool=False, colour: bool=False, width: bool=False, height: bool=False,
                        num_pixels: bool=False, angle: bool=False, st_dev: bool=False) -> None:
         """
@@ -416,9 +418,9 @@ class Graph_Dataset_CSV(InMemoryDataset):
         self.root = root + name + "/" + str(num_segments) + "/"
         self.name = name
         self.length = length if length is not None else 10000           # TODO: Fix this to be more accurate, and for setting actual short lengths
-        self.mode = mode
+        self.mode = mode.value
         self.num_segments = num_segments
-        self.split = split
+        self.split = split.value
 
         # Ablation attributes
         self.colour = colour
@@ -472,7 +474,7 @@ class Graph_Dataset_CSV(InMemoryDataset):
         """
         The name of the file which has the processed and saved data.
         """
-        return [f'{self.name}{self.split}-{self.mode}-{self.num_segments}-{self.length*len(self.raw_file_names)}-{self.ablation_code}.pt'] #TODO: Actual length not calculated correctly
+        return [f'{self.name}-{self.split}-{self.mode}-{self.num_segments}-{self.length*len(self.raw_file_names)}-{self.ablation_code}.pt'] #TODO: Actual length not calculated correctly
 
 
     def process(self):

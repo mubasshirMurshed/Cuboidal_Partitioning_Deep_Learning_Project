@@ -6,104 +6,139 @@ from medmnist import OrganAMNIST
 import os
 import numpy as np
 from typing import Callable, Dict
+from abc import ABC, abstractmethod
 
-# Root directories to dataset sources       # TODO: Fix these to not be abs paths
+# TODO: Add k-fold functionality
+# TODO: Fix abs paths
+
+# Root directories to dataset sources
 MNIST_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\MNIST"
-CIFAR_10_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\CIFAR-10"
+CIFAR10_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\CIFAR10"
 MEDMNIST_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\MedMNIST"
 OMNIGLOT_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\Omniglot"
 
 """
 Base Dataset class to encapsulate links to training, validation and test datasets.
 """
-class Dataset:
-    def __init__(self) -> None:
-        """
-        Provide shapes to each of the dataset splits
-        """
-        self.train_ds.shape = self.shape
-        self.validation_ds.shape = self.shape
-        self.test_ds.shape = self.shape
+class SourceDataset(ABC):
+    @staticmethod
+    @abstractmethod
+    def name() -> str:
+        ...
 
-    def train(self) -> Dataset:
-        """
-        Retrieve training dataset
-        """
-        return self.train_ds
+    @abstractmethod
+    def train_dataset(self) -> Dataset:
+        ...
 
-    def validation(self) -> Dataset:
-        """
-        Retrieve validation dataset
-        """
-        return self.validation_ds
+    @abstractmethod
+    def validation_dataset(self) -> Dataset:
+        ...
 
-    def test(self) -> Dataset:
-        """
-        Retrieve testing dataset
-        """
-        return self.test_ds
+    @abstractmethod
+    def test_dataset(self) -> Dataset:
+        ...
 
 
 """
 Wrapper of the MNIST dataset.
 """
-class MyMNIST(Dataset):
+class MyMNIST(SourceDataset):
+    @staticmethod
+    def name() -> str:
+        return "MNIST"
+
     def __init__(self, transform: Callable | None=None) -> None:
         """
         Sets up the training, validation, and testing dataset of MNIST.
         """
-        # Get dataset source
-        ds = MNIST(root=MNIST_ROOT, train=True, transform=transform)
-
-        # Load in pre-defined subset indices for train/val split
-        train_idx = np.load(r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\split_indices\MNIST_Train_Idx.npy")
-        val_idx = np.load(r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\split_indices\MNIST_Validation_Idx.npy")
-
-        # Obtain each dataset split
-        self.train_ds = Subset(ds, train_idx)
-        self.validation_ds = Subset(ds, val_idx)
-        self.test_ds = MNIST(root=MNIST_ROOT, train=False, transform=transform)
+        self.transform = transform
         self.shape = (28, 28, 1)
-        super().__init__()
+        
+    def train_dataset(self) -> Dataset:
+        ds = MNIST(root=MNIST_ROOT, train=True, transform=self.transform)
+        train_idx = np.load(r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\split_indices\MNIST_Train_Idx.npy")
+        train_dataset = Subset(ds, train_idx)
+        train_dataset.data_shape = self.shape
+        return train_dataset
+
+    def validation_dataset(self) -> Dataset:
+        ds = MNIST(root=MNIST_ROOT, train=True, transform=self.transform)
+        val_idx = np.load(r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\split_indices\MNIST_Validation_Idx.npy")
+        validation_datset = Subset(ds, val_idx)
+        validation_datset.data_shape = self.shape
+        return validation_datset
+
+    def test_dataset(self) -> Dataset:
+        test_dataset = MNIST(root=MNIST_ROOT, train=False, transform=self.transform)
+        test_dataset.data_shape = self.shape
+        return test_dataset
 
 
 """
 Wrapper of the CIFAR-10 dataset.
 """
-class MyCIFAR_10(Dataset):
+class MyCIFAR_10(SourceDataset):
+    @staticmethod
+    def name() -> str:
+        return "CIFAR10"
+    
     def __init__(self, transform: Callable | None=None) -> None:
         """
         Sets up the training, validation, and testing dataset of CIFAR-10.
         """
-        # Get dataset source
-        ds = CIFAR10(root=CIFAR_10_ROOT, train=True, transform=transform)
-
-        # Load in pre-defined subset indices for train/val split
-        train_idx = np.load(r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\split_indices\CIFAR_Train_Idx.npy")
-        val_idx = np.load(r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\split_indices\CIFAR_Validation_Idx.npy")
-
-        # Obtain each dataset split
-        self.train_ds = Subset(ds, train_idx)
-        self.validation_ds = Subset(ds, val_idx)
-        self.test_ds = CIFAR10(root=CIFAR_10_ROOT, train=False, transform=transform)
+        self.transform = transform
         self.shape = (32, 32, 3)
-        super().__init__()
+
+    def train_dataset(self) -> Dataset:
+        dataset = CIFAR10(root=CIFAR10_ROOT, train=True, transform=self.transform)
+        train_idx = np.load(r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\split_indices\CIFAR_Train_Idx.npy")
+        train_dataset = Subset(dataset, train_idx)
+        train_dataset.data_shape = self.shape
+        return train_dataset
+
+    def validation_dataset(self) -> Dataset:
+        dataset = CIFAR10(root=CIFAR10_ROOT, train=True, transform=self.transform)
+        val_idx = np.load(r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\split_indices\CIFAR_Validation_Idx.npy")
+        validation_datset = Subset(dataset, val_idx)
+        validation_datset.data_shape = self.shape
+        return validation_datset
+
+    def test_dataset(self) -> Dataset:
+        test_dataset = CIFAR10(root=CIFAR10_ROOT, train=False, transform=self.transform)
+        test_dataset.data_shape = self.shape
+        return test_dataset
 
 
 """
 Wrapper of the MedMNIST dataset.
 """
-class MyMedMNIST(Dataset):
-    def __init__(self, transform: Callable | None=None, size: int | None=None) -> None:
+class MyMedMNIST(SourceDataset):
+    @staticmethod
+    def name() -> str:
+        return "MedMNIST"
+    
+    def __init__(self, transform: Callable | None=None, size: int=28) -> None:
         """
         Sets up the training, validation, and testing dataset of MedMNIST OrganAMNIST.
         """
-        # Obtain each dataset split
-        self.train_ds = OrganAMNIST(root=MEDMNIST_ROOT, split="train", transform=transform, size=size)
-        self.validation_ds = OrganAMNIST(root=MEDMNIST_ROOT, split="val", transform=transform, size=size)
-        self.test_ds = OrganAMNIST(root=MEDMNIST_ROOT, split="test", transform=transform, size=size)
+        self.transform = transform
+        self.size = size
         self.shape = (size, size, 1)
-        super().__init__()
+
+    def train_dataset(self) -> Dataset:
+        train_dataset = OrganAMNIST(root=MEDMNIST_ROOT, split="train", transform=self.transform, size=self.size)
+        train_dataset.data_shape = self.shape
+        return train_dataset
+
+    def validation_dataset(self) -> Dataset:
+        validation_datset = OrganAMNIST(root=MEDMNIST_ROOT, split="val", transform=self.transform, size=self.size)
+        validation_datset.data_shape = self.shape
+        return validation_datset
+
+    def test_dataset(self) -> Dataset:
+        test_dataset = OrganAMNIST(root=MEDMNIST_ROOT, split="test", transform=self.transform, size=self.size)
+        test_dataset.data_shape = self.shape
+        return test_dataset
 
 
 """
@@ -152,20 +187,33 @@ class OmniglotDatasetFolder(DatasetFolder):
 """
 Wrapper of the Omniglot dataset.
 """
-class MyOmniglot(Dataset):
+class MyOmniglot(SourceDataset):
+    @staticmethod
+    def name() -> str:
+        return "Omniglot"
+    
     def __init__(self, transform: Callable | None=None) -> None:
         """
         Sets up the training, validation, and testing dataset of Omniglot.
         """
         # Turn images to Grayscale since they load as RGB
         if transform is None:
-            transform = transforms.Grayscale()
+            self.transform = transforms.Grayscale()
         else:
-            transform = transforms.Compose([transforms.Grayscale(), transform])
-
-        # Obtain each dataset split through custom class
-        self.train_ds = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="train", transform=transform)
-        self.validation_ds = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="val", transform=transform)
-        self.test_ds = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="test", transform=transform)
+            self.transform = transforms.Compose([transforms.Grayscale(), transform])
         self.shape = (105, 105, 1)
-        super().__init__()
+
+    def train_dataset(self) -> Dataset:
+        train_dataset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="train", transform=self.transform)
+        train_dataset.data_shape = self.shape
+        return train_dataset
+
+    def validation_dataset(self) -> Dataset:
+        validation_datset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="val", transform=self.transform)
+        validation_datset.data_shape = self.shape
+        return validation_datset
+
+    def test_dataset(self) -> Dataset:
+        test_dataset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="test", transform=self.transform)
+        test_dataset.data_shape = self.shape
+        return test_dataset

@@ -18,12 +18,14 @@ from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionM
 from torchmetrics import MetricCollection
 from torchinfo import summary
 import csv
+from enums import Partition
 
 HYPHEN_COUNT = 80
 
 # TODO: Make datamodule has num_classes instead?
-# TODO: Add control on which metric is tracked for best?
 # TODO: Think of a better way of validation final metrics
+# TODO: Add top_k
+# TODO: Add k-fold functionality
 
 class Trainer():
     """
@@ -35,7 +37,7 @@ class Trainer():
             loss_fn: nn.Module, optimizer: Optimizer, max_epochs: int, 
             hparams: Dict[str, Any], scheduler: LRScheduler | None = None, save_every_n_epoch: int=1, 
             allow_log: bool=True, print_cm: bool=True, resume_from_ckpt: str | None=None, 
-            is_graph_model: bool=True, verbose: bool=True, save_best: bool=True, log_to_csv: bool=True,
+            is_graph_model: bool=True, verbose: bool=True, log_to_csv: bool=True,
             allow_summary: bool=True
         ) -> None:
         """
@@ -126,6 +128,9 @@ class Trainer():
     def fit(self) -> None:
         """
         Fits dataset onto model. Safe exit providing by catching the Keyboard interrupt to stop training.
+
+        Returns:
+            - The instance of the trained model.
         """
         # Get directory information
         if self.allow_log:
@@ -169,15 +174,18 @@ class Trainer():
 
         # Print out what dataset is being trained on
         print('-' * HYPHEN_COUNT)
-        print(f"Dataset:\t\t{self.data_module.name.upper()}")
+        print(f"Dataset:\t\t{self.data_module.source.name().upper()}")
         print('-' * HYPHEN_COUNT)
 
-        # Print out partitioning algorithm and segment number   # TODO: Change this to be less hardcoded
-        print(f"Partition:\t\t{'CuPID' if self.data_module.mode == 'CP' else 'SLIC'} - {self.data_module.num_segments}")
+        # Print out partitioning algorithm and segment number
+        if self.data_module.mode is Partition.CuPID:
+            print(f"Partition:\t\t{Partition.CuPID.name} - {self.data_module.num_segments}")
+        elif self.data_module.mode is Partition.SLIC:
+            print(f"Partition:\t\t{Partition.SLIC.name} - {self.data_module.num_segments}")
         print('-' * HYPHEN_COUNT)
 
         # Print ablation code
-        print(f"Ablation Code:\t\t{self.data_module.train_set.ablation_code}")
+        print(f"Ablation:\t\t{self.data_module.train_set.ablation_code}")
         print('-' * HYPHEN_COUNT)
 
         # Print model name
@@ -212,6 +220,7 @@ class Trainer():
 
         # Initialise best model metric
         best_val_loss = float("inf")
+        best_val_accuracy = 0
 
         # Try-Catch block for allowing graceful finish with Keyboard Interrupts
         try:
@@ -248,8 +257,11 @@ class Trainer():
 
                     # Save best checkpoint
                     if val_loss < best_val_loss:
-                        torch.save(self.model.state_dict(), self.ckpt_dir + "best.pt")
+                        torch.save(self.model.state_dict(), self.ckpt_dir + "bestLoss.pt")
                         best_val_loss = val_loss
+                    if val_acc.item() > best_val_accuracy:
+                        torch.save(self.model.state_dict(), self.ckpt_dir + "best.pt")
+                        best_val_accuracy = val_acc.item()
 
                     # Saving checkpoints
                     if self.save_every_n_epoch != 0 and ((epoch) % self.save_every_n_epoch == 0):
@@ -297,18 +309,30 @@ class Trainer():
             # Close csv file writer
             if self.log_to_csv:
                 csv_file.close()
+            
+        return self.model
 
 
-    def test(self, model_ckpt=None) -> None:
+    def test(self, model_ckpt:str | Path | None=None, best_val_acc:bool=True) -> None:
         """
         Runs the model through the test dataloader to determine how well it has performed.
+
+        Args:
+        - model_ckpt: str | Path | None
+            - Path to a saved model state (.pt file). Default=None
+        - best_val_acc: bool
+            - Flag for using the best model tracked by validation accuracy. If false, the model
+              with the best loss will be used. This will only happen if self.allow_log was defined as
+              true. Default=True
         """
-        # Load model is a checkpoint is given, otherwise use the best
-        # TODO: Extend if "best.pt" not available in the instance allow_log=False
+        # Load model is a checkpoint is given, otherwise use the best model saved
         if model_ckpt is not None:
             self.model.load_state_dict(torch.load(model_ckpt))
         elif self.allow_log:
-            self.model.load_state_dict(torch.load(self.ckpt_dir + "best.pt"))
+            if best_val_acc:
+                self.model.load_state_dict(torch.load(self.ckpt_dir + "best.pt"))
+            else:
+                self.model.load_state_dict(torch.load(self.ckpt_dir + "bestLoss.pt"))
 
         # Move model over to device
         self.model = self.model.to(device=self.device)

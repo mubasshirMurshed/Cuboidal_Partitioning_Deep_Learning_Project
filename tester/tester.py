@@ -2,7 +2,7 @@ from torch import nn
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
-from data.datasets import *
+from data.graph_datasets import *
 from models.mnistGAT2 import MNIST_GAT2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -26,12 +26,12 @@ test_metrics = MetricCollection( {
 }, compute_groups=False).to(device)
 
 # Initialise datamodule and model
-features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True, "num_pixels":True, "st_dev":True}
-data_module = Graph_DataModule(name="mnist", num_segments=64, batch_size=100, mode="CP", features=features)
-model = MNIST_GAT2(num_features=data_module.train_set.num_features)
+features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True, "st_dev":True}
+data_module = Graph_DataModule(name="mnist", num_segments=32, batch_size=100, mode="SP", features=features)
+model = MNIST_GAT2(num_features=data_module.train_set.num_features, num_classes=num_classes)
 
 # Load model
-model_ckpt = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\saved\MNIST_CP_64_DataModule\XYCNWHS\MNIST_GAT2\Run_ID__2024-05-17__01-41-33\checkpoints\epoch=80-val_loss=0.0739-val_acc=0.9821.pt"
+model_ckpt = r"saved\MNIST_SP_32_DataModule\XYCWHS\MNIST_GAT2\Run_ID__2024-05-21__16-03-12\checkpoints\epoch=50-val_loss=0.1534-val_acc=0.9522.pt"
 model.load_state_dict(torch.load(model_ckpt))
 model = model.to(device=device)
 
@@ -84,7 +84,7 @@ for i in range(len(predictions)):
     if predictions[i, 0] != predictions[i, 1]:
         mislabelled.append((i, predictions[i, 0].item(), predictions[i, 1].item()))
 
-print("Mislabelled Test images: " + str(list(zip(*mislabelled))[0]))
+# print("Mislabelled Test images: " + str(list(zip(*mislabelled))[0]))
 
 # Only view first 50
 mislabelled = mislabelled[:50]
