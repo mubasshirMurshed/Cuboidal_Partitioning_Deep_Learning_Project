@@ -13,7 +13,6 @@ import math
 import multiprocessing as mp
 from enums import Split, Partition
 
-# TODO: Fourth form that is super on the fly, not in memory
 # TODO: Clean up the other two datasets
 
 class Graph_Dataset(Dataset):
@@ -433,7 +432,7 @@ class Graph_Dataset_CSV(InMemoryDataset):
     
     def __init__(self, root: str, name: str, split: Split, mode: Partition, num_segments: int, length: int | None=None,
                        x_center: bool=False, y_center: bool=False, colour: bool=False, width: bool=False, height: bool=False,
-                       num_pixels: bool=False, angle: bool=False, st_dev: bool=False) -> None:
+                       num_pixels: bool=False, angle: bool=False, stdev: bool=False) -> None:
         """
         Saves attributes and runs super init to do processing and loading of the data done by super class.
 
@@ -449,7 +448,7 @@ class Graph_Dataset_CSV(InMemoryDataset):
         - num_segments: int
             - How many segments to partition the dataset into
         - length: int | None
-            - Length of dataset to consider
+            - Length of dataset to only load, if None, all will be loaded
         - x_center: bool
             - Whether to include x-center data in each graph node
         - y_center: bool
@@ -470,7 +469,7 @@ class Graph_Dataset_CSV(InMemoryDataset):
         # Save attributes
         self.root = root + name + "/" + str(num_segments) + "/"
         self.name = name
-        self.length = length if length is not None else 10000           # TODO: Fix this to be more accurate, and for setting actual short lengths
+        self.dataset_size = length
         self.mode = mode.value
         self.num_segments = num_segments
         self.split = split.value
@@ -483,7 +482,7 @@ class Graph_Dataset_CSV(InMemoryDataset):
         self.angle = angle
         self.width = width
         self.height = height
-        self.stdev = st_dev
+        self.stdev = stdev
 
         # Create ablation code string
         self.ablation_code = ""
@@ -503,6 +502,29 @@ class Graph_Dataset_CSV(InMemoryDataset):
             self.ablation_code += 'H'
         if self.stdev:
             self.ablation_code += 'S'
+
+        # Get length of dataset to be loaded in
+        num_rows = [0]*len(self.raw_paths)
+        for i, filepath in enumerate(self.raw_paths):
+            # Find number of rows in csv
+            f = open(filepath)
+            num_rows[i] = sum(1 for _ in f) - 1
+            f.close()
+
+        # Set dataset size if None was set
+        if self.dataset_size is None or self.dataset_size > sum(num_rows):
+            self.dataset_size = sum(num_rows)
+
+        # Determine index of last raw filepath to process and specific number to load to meet length requirement
+        total = 0
+        self.last_filepath_idx = len(self.raw_paths) - 1
+        for i in range(len(self.raw_paths)):
+            total += num_rows[i]
+            if total >= self.dataset_size:
+                self.last_filepath_idx = i
+                total -= num_rows[i]
+                break
+        self.last_file_load_amount = self.dataset_size - total
 
         # Run inherited processes to create dataset .pt files
         super().__init__(self.root)
@@ -527,7 +549,7 @@ class Graph_Dataset_CSV(InMemoryDataset):
         """
         The name of the file which has the processed and saved data.
         """
-        return [f'{self.name}-{self.split}-{self.mode}-{self.num_segments}-{self.length*len(self.raw_file_names)}-{self.ablation_code}.pt'] #TODO: Actual length not calculated correctly
+        return [f'{self.name}-{self.split}-{self.mode}-{self.num_segments}-{self.dataset_size}-{self.ablation_code}.pt']
 
 
     def process(self):
@@ -550,13 +572,25 @@ class Graph_Dataset_CSV(InMemoryDataset):
             num_cols[i] = max(len(line.split(',')) for line in f)
             f.close()
 
-        # Iterate through each file
+        # Iterate through each file until all processed or all requested data is loaded
         for i, filepath in enumerate(self.raw_paths):
-            # Read in data file and save attributes
-            if self.length is not None:
-                df = pd.read_csv(filepath, nrows=self.length, header=None, skiprows=[0], names=range(num_cols[i])).fillna(0)
+            # How much to read based on file idx
+            if i < self.last_filepath_idx:
+                read_all = True
+            elif i == self.last_filepath_idx:
+                read_all = False
             else:
+                break
+
+            # If requested length is 0 then just exit
+            if self.dataset_size == 0:
+                break
+
+            # Read in data file and save attributes
+            if read_all:
                 df = pd.read_csv(filepath, header=None, skiprows=[0], names=range(num_cols[i])).fillna(0)
+            else:
+                df = pd.read_csv(filepath, nrows=self.last_file_load_amount, header=None, skiprows=[0], names=range(num_cols[i])).fillna(0)
 
             # Make space for data objects from this file
             data_list = [0]*(len(df))
