@@ -19,6 +19,7 @@ from torchmetrics import MetricCollection
 from torchinfo import summary
 import csv
 from enums import Partition
+import heapq
 
 HYPHEN_COUNT = 80
 
@@ -38,7 +39,7 @@ class Trainer():
             hparams: Dict[str, Any], scheduler: LRScheduler | None = None, save_every_n_epoch: int=1, 
             allow_log: bool=True, print_cm: bool=True, resume_from_ckpt: str | None=None, 
             is_graph_model: bool=True, verbose: bool=True, log_to_csv: bool=True,
-            allow_summary: bool=True
+            allow_summary: bool=True, save_top_k: int=-1
         ) -> None:
         """
         Saves model, datasets/loaders and all flags passed. Sets up metrics to track as well.
@@ -82,6 +83,9 @@ class Trainer():
             - Controls whether the epoch results are all logged in a csv file for easy plotting, default=True
         - allow_summary: bool
             - Controls whether summary information of the run will be printed at the start
+        - save_top_k: int
+            - Saves only the k top model checkpoints (exlcuding best.pt and last.pt), will delete saved checkpoints
+              if they no longer are in top k performance, default=-1, corresponding to infinite k.
         """
         # Save attributes
         self.model = model
@@ -99,6 +103,7 @@ class Trainer():
         self.verbose = verbose
         self.log_to_csv = log_to_csv
         self.allow_summary = allow_summary
+        self.save_top_k = save_top_k
 
         # Create and setup dataloaders
         self.data_module = data_module
@@ -123,6 +128,10 @@ class Trainer():
             "Top 3 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=3),
             "Confusion Matrix" : MulticlassConfusionMatrix(self.num_classes)
         }, compute_groups=False).to(self.device)
+
+        # Set up saved checkpoint storage if save_top_k enabled
+        if self.save_top_k:
+            self.minheap = []
 
 
     def fit(self) -> None:
@@ -264,10 +273,29 @@ class Trainer():
                         best_val_accuracy = val_acc.item()
 
                     # Saving checkpoints
-                    if self.save_every_n_epoch != 0 and ((epoch) % self.save_every_n_epoch == 0):
+                    if self.save_every_n_epoch != 0 and self.save_top_k != 0 and ((epoch) % self.save_every_n_epoch == 0):
                         filename = f"epoch={epoch}-val_loss={val_loss:.4f}-val_acc={val_acc:.4f}.pt"
-                        torch.save(self.model.state_dict(), self.ckpt_dir + filename)
+                        new_ckpt_filepath = self.ckpt_dir + filename
+                        if self.save_top_k > 0:
+                            if len(self.minheap) < self.save_top_k:
+                                # K checkpoints not saved yet, keep saving
+                                torch.save(self.model.state_dict(), new_ckpt_filepath)
+                                heapq.heappush(self.minheap, (val_acc, new_ckpt_filepath))
+                            else:
+                                # K checkpoints exist, pop worst checkpoint
+                                kth_best_val_acc, old_ckpt_filepath = heapq.heappop(self.minheap)
 
+                                # Compare with current val accuracy tracked
+                                if val_acc > kth_best_val_acc:
+                                    # Remove the old one and save the current model state
+                                    os.remove(old_ckpt_filepath)
+                                    torch.save(self.model.state_dict(), new_ckpt_filepath)
+                                    heapq.heappush(self.minheap, (val_acc, new_ckpt_filepath))
+                                else:
+                                    heapq.heappush(self.minheap, (kth_best_val_acc, old_ckpt_filepath))
+                        else:
+                            torch.save(self.model.state_dict(), new_ckpt_filepath)
+                        
                     # Keep track in csv log
                     if self.log_to_csv:
                         writer.writerow([epoch, train_loss, train_acc.item(), val_loss, val_acc.item()])

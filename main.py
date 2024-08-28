@@ -29,7 +29,7 @@ def main():
     }
 
     # Create data module
-    features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True, "st_dev":True}
+    features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True}
     data_module = Graph_DataModule_CSV(
         dataset=MyMNIST,
         num_segments=64,
@@ -55,15 +55,15 @@ def main():
     hparams["scheduler"] = scheduler.__class__.__name__
 
     # Define flags
-    allow_log = False
-    save_every_n_epoch = 1
+    allow_log = True
+    save_every_n_epoch = 2
     resume_from_ckpt = None
     is_graph_model = True
 
     # Create trainer
     trainer = Trainer(model=model, data_module=data_module, loss_fn=loss_fn, optimizer=optimizer, scheduler=scheduler, hparams=hparams,
                     save_every_n_epoch=save_every_n_epoch, allow_log=allow_log, num_classes=num_classes, is_graph_model=is_graph_model,
-                    resume_from_ckpt=resume_from_ckpt, max_epochs=hparams["max_epochs"])
+                    resume_from_ckpt=resume_from_ckpt, max_epochs=hparams["max_epochs"], save_top_k=5)
     
     # Train model
     trainer.fit()
