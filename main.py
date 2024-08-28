@@ -55,15 +55,16 @@ def main():
     hparams["scheduler"] = scheduler.__class__.__name__
 
     # Define flags
-    allow_log = True
-    save_every_n_epoch = 2
+    allow_log = False
+    save_every_n_epoch = 1
+    save_top_k = 10
     resume_from_ckpt = None
     is_graph_model = True
 
     # Create trainer
     trainer = Trainer(model=model, data_module=data_module, loss_fn=loss_fn, optimizer=optimizer, scheduler=scheduler, hparams=hparams,
                     save_every_n_epoch=save_every_n_epoch, allow_log=allow_log, num_classes=num_classes, is_graph_model=is_graph_model,
-                    resume_from_ckpt=resume_from_ckpt, max_epochs=hparams["max_epochs"], save_top_k=5)
+                    resume_from_ckpt=resume_from_ckpt, max_epochs=hparams["max_epochs"], save_top_k=save_top_k)
     
     # Train model
     trainer.fit()

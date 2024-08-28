@@ -32,7 +32,7 @@ If the first instance of a csv file is detected for a given split and partition,
 and assume the files already exist.
 """
 class CSV_Dataset_Creator:
-    def __init__(self, root: str, dataset: Type[SourceDataset], num_segments: int, mode: Partition, max_entries_per_file: int=10000, chunksize: int=200) -> None:
+    def __init__(self, root: str, dataset: Type[SourceDataset], num_segments: int, mode: Partition, max_entries_per_file: int=10000, chunksize: int=200, overwrite: bool=False) -> None:
         """
         Saves attributes, and creates necessary extra data based on mode selected and dataset. Creates links to the raw splits of 
         the selected datasets with the appropriate partitioning algorithm provided as a transform.
@@ -56,11 +56,12 @@ class CSV_Dataset_Creator:
         """
         # Save attributes and path information
         self.num_segments = num_segments
-        self.dataset_name = dataset.name
-        self.data_source = root + dataset.name                                           # The path to dataset provided
-        self.root = root + dataset + "/" + f"{self.num_segments}" + "/raw/"         # The dataset processed files will be saved here
+        self.dataset_name = dataset.name()
+        self.data_source = root + dataset.name()                                           # The path to dataset provided
+        self.root = self.data_source + "/" + f"{self.num_segments}" + "/raw/"         # The dataset processed files will be saved here
         self.chunksize = chunksize
         self.max_entries_per_file = max_entries_per_file
+        self.overwrite = overwrite
         
         # Determine partitioning transform
         self.mode = mode
@@ -93,23 +94,37 @@ class CSV_Dataset_Creator:
         For a given split and a dataset provided, transform its full contents into partitioned data
         which is then written in a csv file for easy extraction from an in-memory dataset.
         """
+        # Number of files to make based on each section
+        num_files = math.ceil(len(dataset) / self.max_entries_per_file)
+
         # Filename of where to write
-        filepath = f"{self.root}/{self.dataset_name}-{split.value}-{self.mode.value}-{self.num_segments}-1.csv"
+        filepaths = [f"{self.root}/{self.dataset_name}-{split.value}-{self.mode.value}-{self.num_segments}-{i+1}.csv" for i in range(num_files)]
+
+        # If all exist, do early exit
+        if not self.overwrite:
+            all_exist = True
+            for filepath in filepaths:
+                if not os.path.isfile(filepath):
+                    all_exist = False
+                    break
+            if all_exist:
+                if verbose: print(f"All {split.value} dataset CSV files already exist!")
+                return
 
         # Check that the directory exists and if not, create it
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-
-        # If file already exists, then return
-        if os.path.isfile(filepath):
-            if verbose: print(f"{split} dataset already exists.")
-            return
+        os.makedirs(os.path.dirname(filepaths[0]), exist_ok=True)
         
         # Create multiprocessing pool
         with mp.Pool(processes=28) as pool:
-            if verbose: print(f"Generating {split} dataset files...")
+            if verbose: print(f"Generating {split.value} dataset CSV files...")
             
             # Iterate over every chunk of data
-            for i in tqdm(range(math.ceil(len(dataset) / self.max_entries_per_file)), position=0, leave=False, disable=not verbose):
+            for i in tqdm(range(num_files), position=0, leave=False, disable=not verbose):
+                # Skip if filename already exists only if overwrite option is disabled
+                if not self.overwrite and os.path.isfile(filepaths[i]):
+                    if verbose: print(f"\nCSV File: {filepaths[i]} already exists. Moving on...")
+                    continue
+
                 # For each image in the chunk, pre allocate space for data collection
                 start = i*self.max_entries_per_file
                 end = min((i+1)*self.max_entries_per_file, len(dataset))
@@ -121,7 +136,7 @@ class CSV_Dataset_Creator:
                     data = list(tqdm(pool.imap(obtain_slic_data, zip(range(start, end), [dataset]*(end - start)), self.chunksize), total=end-start, position=1, leave=False, disable=not verbose)) 
 
                 # File writing
-                filepath = f"{self.root}/{self.dataset_name}-{split.value}-{self.mode.value}-{self.num_segments}-{i+1}.csv"
+                filepath = filepaths[i]
                 file = open(filepath, 'w', newline='')
                 writer = csv.writer(file)
                 writer.writerow(["Sample_No", "Label", "PSNR", "No_of_Nodes", "No_of_Features", "Length_X", "Length_Y", 
@@ -135,7 +150,7 @@ class CSV_Dataset_Creator:
                 # csv file complete
                 file.close()
 
-        if verbose: print(f"{split} dataset files generated.\n")
+        if verbose: print(f"{split.value} dataset CSV files generated.\n")
 
 
 def obtain_cupid_data(arg: Tuple[int, Dataset]):
@@ -279,7 +294,7 @@ Script to create the CSV files.
 """
 import time
 def main():
-    creator = CSV_Dataset_Creator("data/csv/", MyOmniglot, 128, "SP", chunksize=10)
+    creator = CSV_Dataset_Creator("data/csv/", MyMedMNIST, 16, Partition.CuPID, chunksize=10, overwrite=False)
     start = time.perf_counter()
     creator.create_csv_files(verbose=True)
     end = time.perf_counter()
