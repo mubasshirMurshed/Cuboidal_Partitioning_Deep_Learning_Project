@@ -7,7 +7,7 @@ from torch import nn
 from data.datamodules import Graph_DataModule_CSV, Graph_DataModule
 from models.mnistGAT2 import MNIST_GAT2
 from data.data_classes import MyMNIST, MyCIFAR_10, MyMedMNIST, MyOmniglot
-from trainer import Trainer
+from tools import Trainer
 import torch_geometric
 from enums import Partition
 # torch.backends.cudnn.deterministic=True

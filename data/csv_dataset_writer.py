@@ -16,7 +16,7 @@ from enums import Split, Partition
 # TODO: Put partition_to_graph function as partition method obtained from inheritance
 # TODO: Move file writing out of mp pool
 
-class CSV_Dataset_Creator:
+class CSV_Dataset_Writer:
     """
     A class that is responsible for creating the multiple csv files containing the partitioned data
     for each split. This means a csv file will be created for each split and can be created based on
@@ -294,7 +294,7 @@ Script to create the CSV files.
 """
 import time
 def main():
-    creator = CSV_Dataset_Creator("data/csv/", MyMedMNIST, 16, Partition.CuPID, chunksize=10, overwrite=False)
+    creator = CSV_Dataset_Writer("data/csv/", MyMedMNIST, 16, Partition.CuPID, chunksize=10, overwrite=False)
     start = time.perf_counter()
     creator.create_csv_files(verbose=True)
     end = time.perf_counter()
