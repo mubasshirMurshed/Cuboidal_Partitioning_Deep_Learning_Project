@@ -12,10 +12,10 @@ from abc import ABC, abstractmethod
 # TODO: Fix abs paths
 
 # Root directories to dataset sources
-MNIST_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\MNIST"
-CIFAR10_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\CIFAR10"
-MEDMNIST_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\MedMNIST"
-OMNIGLOT_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\Omniglot"
+MNIST_ROOT = "data/source/MNIST/"
+CIFAR10_ROOT = "data/source/CIFAR10/"
+MEDMNIST_ROOT = "data/source/MedMNIST/"
+OMNIGLOT_ROOT = "data/source/Omniglot/"
 
 
 class SourceDataset(ABC):
@@ -57,14 +57,14 @@ class MyMNIST(SourceDataset):
         
     def train_dataset(self) -> Dataset:
         ds = MNIST(root=MNIST_ROOT, train=True, transform=self.transform)
-        train_idx = np.load(r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\split_indices\MNIST_Train_Idx.npy")
+        train_idx = np.load("data/split_indices/MNIST_Train_Idx.npy")
         train_dataset = Subset(ds, train_idx)
         train_dataset.data_shape = self.shape
         return train_dataset
 
     def validation_dataset(self) -> Dataset:
         ds = MNIST(root=MNIST_ROOT, train=True, transform=self.transform)
-        val_idx = np.load(r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\split_indices\MNIST_Validation_Idx.npy")
+        val_idx = np.load("data/split_indices/MNIST_Validation_Idx.npy")
         validation_datset = Subset(ds, val_idx)
         validation_datset.data_shape = self.shape
         return validation_datset
@@ -92,14 +92,14 @@ class MyCIFAR_10(SourceDataset):
 
     def train_dataset(self) -> Dataset:
         dataset = CIFAR10(root=CIFAR10_ROOT, train=True, transform=self.transform)
-        train_idx = np.load(r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\split_indices\CIFAR_Train_Idx.npy")
+        train_idx = np.load("data/split_indices/CIFAR_Train_Idx.npy")
         train_dataset = Subset(dataset, train_idx)
         train_dataset.data_shape = self.shape
         return train_dataset
 
     def validation_dataset(self) -> Dataset:
         dataset = CIFAR10(root=CIFAR10_ROOT, train=True, transform=self.transform)
-        val_idx = np.load(r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\split_indices\CIFAR_Validation_Idx.npy")
+        val_idx = np.load("data/split_indices/CIFAR_Validation_Idx.npy")
         validation_datset = Subset(dataset, val_idx)
         validation_datset.data_shape = self.shape
         return validation_datset

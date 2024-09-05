@@ -294,7 +294,7 @@ Script to create the CSV files.
 """
 import time
 def main():
-    creator = CSV_Dataset_Writer("data/csv/", MyMedMNIST, 16, Partition.CuPID, chunksize=10, overwrite=False)
+    creator = CSV_Dataset_Writer("data/csv/", MyMNIST, 16, Partition.CuPID, chunksize=50, overwrite=False)
     start = time.perf_counter()
     creator.create_csv_files(verbose=True)
     end = time.perf_counter()
