@@ -173,3 +173,58 @@ class SLIC:
                     adj_matrix[map[i + 1, j - 1], map[i, j]] = 1
 
         return adj_matrix
+    
+    
+    def transform_to_csv_data(self):       
+        # Initialise first few column values
+        table = self.segments
+        shape = self.I.shape
+        no_of_nodes = len(table)
+        no_of_features = shape[-1]
+        new_row_entry = [None, None, 0, no_of_nodes, no_of_features, shape[0], shape[1]]
+
+        # Add in center x coordinates segment
+        for _, row in table.iterrows():
+            new_row_entry.append(round(row["x_center"], 2))
+
+        # Add in center y coordinates for each segment
+        for _, row in table.iterrows():
+            new_row_entry.append(round(row["y_center"], 2))
+
+        # Add in colour values for each segment (restore float to be between 0-255)
+        for j in range(no_of_features):
+            for _, row in table.iterrows():
+                new_row_entry.append(np.around(row["mu"][j]*255, 2))
+        
+        # Add in num of pixels for each segment
+        for _, row in table.iterrows():
+            new_row_entry.append(row["n"])
+
+        # Add in box angles for each segment
+        for _, row in table.iterrows():
+            new_row_entry.append(round(np.arctan(row["height"]/row["width"])*180/np.pi, 2))        # This is hardcoded to 2D
+
+        # Add in box width for each segment
+        for _, row in table.iterrows():
+            new_row_entry.append(row["width"])
+
+        # Add in box height for each segment
+        for _, row in table.iterrows():
+            new_row_entry.append(row["height"])
+
+        # Add in standard deviation for each segment w.r.t original sections (scaled to 255 colour space)
+        for j in range(no_of_features):
+            for _, row in table.iterrows():
+                new_row_entry.append(np.around(np.sqrt(row["sigma2"][j])*255, 2))
+
+        # Calculate number of edges present
+        adj_matrix = self.adjacency_matrix()
+        no_of_edges = np.sum(adj_matrix)
+        coo_src, coo_dst = np.where(adj_matrix)
+
+        # Add the edge information
+        new_row_entry.append(no_of_edges)
+        new_row_entry.extend(coo_src)
+        new_row_entry.extend(coo_dst)
+
+        return new_row_entry

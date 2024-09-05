@@ -10,11 +10,6 @@ from torch.utils.data import Dataset
 from typing import Tuple, Type
 from enums import Split, Partition
 
-# TODO: Add replace/overwiter functionality, which skips the exist check and overwrites anyway.
-# TODO: Throw errors instead of returning for the error cases
-# TODO: Change processes to num_workers argument able to passed
-# TODO: Put partition_to_graph function as partition method obtained from inheritance
-# TODO: Move file writing out of mp pool
 
 class CSV_Dataset_Writer:
     """
@@ -32,7 +27,8 @@ class CSV_Dataset_Writer:
     If the first instance of a csv file is detected for a given split and partition, it will stop
     and assume the files already exist.
     """
-    def __init__(self, root: str, dataset: Type[SourceDataset], num_segments: int, mode: Partition, max_entries_per_file: int=10000, chunksize: int=200, overwrite: bool=False) -> None:
+    def __init__(self, root: str, dataset: Type[SourceDataset], num_segments: int, mode: Partition, max_entries_per_file: int=10000, 
+                 chunksize: int=200, overwrite: bool=False, num_workers: int=28) -> None:
         """
         Saves attributes, and creates necessary extra data based on mode selected and dataset. Creates links to the raw splits of 
         the selected datasets with the appropriate partitioning algorithm provided as a transform.
@@ -62,6 +58,7 @@ class CSV_Dataset_Writer:
         self.chunksize = chunksize
         self.max_entries_per_file = max_entries_per_file
         self.overwrite = overwrite
+        self.num_workers = num_workers
         
         # Determine partitioning transform
         self.mode = mode
@@ -70,8 +67,7 @@ class CSV_Dataset_Writer:
         elif self.mode is Partition.SLIC:
             transform = SLICPartition(self.num_segments)
         else:
-            print("Error, mode is not recognised or supported.")
-            return
+            raise ValueError(f"Supplied 'mode' argument not a registered partitioning strategy. Got {self.mode} but should be been a Partition Enum.")
 
         # Data Source with Partition transform
         self.dataset = dataset(transform)
@@ -115,7 +111,7 @@ class CSV_Dataset_Writer:
         os.makedirs(os.path.dirname(filepaths[0]), exist_ok=True)
         
         # Create multiprocessing pool
-        with mp.Pool(processes=28) as pool:
+        with mp.Pool(processes=self.num_workers) as pool:
             if verbose: print(f"Generating {split.value} dataset CSV files...")
             
             # Iterate over every chunk of data
@@ -129,11 +125,8 @@ class CSV_Dataset_Writer:
                 start = i*self.max_entries_per_file
                 end = min((i+1)*self.max_entries_per_file, len(dataset))
 
-                # Obtain the relevant CuPID data of all images in this chunk in parallel
-                if self.mode is Partition.CuPID:
-                    data = list(tqdm(pool.imap(obtain_cupid_data, zip(range(start, end), [dataset]*(end - start)), self.chunksize), total=end-start, position=1, leave=False, disable=not verbose))               
-                elif self.mode is Partition.SLIC:
-                    data = list(tqdm(pool.imap(obtain_slic_data, zip(range(start, end), [dataset]*(end - start)), self.chunksize), total=end-start, position=1, leave=False, disable=not verbose)) 
+                # Obtain the relevant CSV data of all images in this chunk in parallel
+                data = list(tqdm(pool.imap(convert_to_array_of_data, zip(range(start, end), [dataset]*(end - start)), self.chunksize), total=end-start, position=1, leave=False, disable=not verbose))
 
                 # File writing
                 filepath = filepaths[i]
@@ -153,139 +146,26 @@ class CSV_Dataset_Writer:
         if verbose: print(f"{split.value} dataset CSV files generated.\n")
 
 
-def obtain_cupid_data(arg: Tuple[int, Dataset]):
+def convert_to_array_of_data(arg: Tuple[int, Dataset]):
     """
-    Given a dataset sample partitioned by CuPID, extract the relevant information to be written
-    into a csv file row all into one list. This function is expected to be ran in parallel using
+    Given a dataset sample partitioned by CuPID or SLIC, extract the relevant information to be written
+    into a single row in a csv file. This function is expected to be ran in parallel using
     Python multiprocessing.Pool.imap.
     """
-    # Obtain CuPID data of the image
+    # Obtain partitioned data of the image
     i, dataset = arg
-    cupid_object, label = dataset[i]
+    partitioned_object, label = dataset[i]
 
     # If label is not an integer (inside an array) extract it
     if type(label) != int:
         label = np.array(label).item()
 
-    # Filter table to only contain leaf cuboids
-    cupid_table = cupid_object.cuboids
-    cupid_table = cupid_table[cupid_table["order"] < 0].sort_values(by="order", ascending=False)
-    
-    # Initialise first few column values
-    shape = dataset.data_shape
-    no_of_nodes = len(cupid_table)
-    no_of_features = shape[-1]
-    new_row_entry = [i, label, 0, no_of_nodes, no_of_features, shape[0], shape[1]]
+    # Get csv data
+    new_row_entry = partitioned_object.transform_to_csv_data()
 
-    # Add in center x coordinates cuboid
-    for _, row in cupid_table.iterrows():
-        new_row_entry.append((row["size"][1]+1)/2 + row["start"][1] + 1)
-
-    # Add in center y coordinates for each cuboid
-    for _, row in cupid_table.iterrows():
-        new_row_entry.append((row["size"][0]+1)/2 + row["start"][0] + 1)
-
-    # Add in colour values for each cuboid (restore float to be between 0-255)
-    for j in range(no_of_features):
-        for _, row in cupid_table.iterrows():
-            new_row_entry.append(np.around(row["mu"][j]*255, 2))
-    
-    # Add in num of pixels for each cuboid
-    for _, row in cupid_table.iterrows():
-        new_row_entry.append(row["n"])
-
-    # Add in box angles for each cuboid
-    for _, row in cupid_table.iterrows():
-        new_row_entry.append(round(math.atan(row["size"][0]/row["size"][1])*180/math.pi, 2))  # This is hardcoded to 2D
-
-    # Add in box width for each cuboid
-    for _, row in cupid_table.iterrows():
-        new_row_entry.append(row["size"][1])
-
-    # Add in box height for each cuboid
-    for _, row in cupid_table.iterrows():
-        new_row_entry.append(row["size"][0])
-
-    # Add in standard deviation for each cuboid w.r.t original sections (scaled to 255 colour space)
-    for j in range(no_of_features):
-        for _, row in cupid_table.iterrows():
-            new_row_entry.append(np.around(np.sqrt(row["sigma2"][j])*255, 2))
-
-    # Calculate number of edges present
-    adj_matrix = cupid_object.adjacency_matrix()
-    no_of_edges = np.sum(adj_matrix)
-    coo_src, coo_dst = np.where(adj_matrix)
-
-    # Add the edge information
-    new_row_entry.append(no_of_edges)
-    new_row_entry.extend(coo_src)
-    new_row_entry.extend(coo_dst)
-
-    return new_row_entry
-
-def obtain_slic_data(arg: Tuple[int, Dataset]):
-    """
-    Given a dataset sample partitioned by SLIC, extract the relevant information to be written
-    into a csv file row all into one list. This function is expected to be ran in parallel using
-    Python multiprocessing.Pool.imap.
-    """
-    # Obtain SLIC data of the image
-    i, dataset = arg
-    slic_object, label = dataset[i]
-    if type(label) != int:
-        label = np.array(label).item()
-    
-    # Initialise first few column values
-    slic_table = slic_object.segments
-    shape = dataset.data_shape
-    no_of_nodes = len(slic_table)
-    no_of_features = shape[-1]
-    new_row_entry = [i, label, 0, no_of_nodes, no_of_features, shape[0], shape[1]]
-
-    # Add in center x coordinates segment
-    for _, row in slic_table.iterrows():
-        new_row_entry.append(round(row["x_center"], 2))
-
-    # Add in center y coordinates for each segment
-    for _, row in slic_table.iterrows():
-        new_row_entry.append(round(row["y_center"], 2))
-
-    # Add in colour values for each segment (restore float to be between 0-255)
-    for j in range(no_of_features):
-        for _, row in slic_table.iterrows():
-            new_row_entry.append(np.around(row["mu"][j]*255, 2))
-    
-    # Add in num of pixels for each segment
-    for _, row in slic_table.iterrows():
-        new_row_entry.append(row["n"])
-
-    # Add in box angles for each segment
-    for _, row in slic_table.iterrows():
-        new_row_entry.append(round(math.atan(row["height"]/row["width"])*180/math.pi, 2))        # This is hardcoded to 2D
-
-    # Add in box width for each segment
-    for _, row in slic_table.iterrows():
-        new_row_entry.append(row["width"])
-
-    # Add in box height for each segment
-    for _, row in slic_table.iterrows():
-        new_row_entry.append(row["height"])
-
-    # Add in standard deviation for each segment w.r.t original sections (scaled to 255 colour space)
-    for j in range(no_of_features):
-        for _, row in slic_table.iterrows():
-            new_row_entry.append(np.around(np.sqrt(row["sigma2"][j])*255, 2))
-
-    # Calculate number of edges present
-    adj_matrix = slic_object.adjacency_matrix()
-    no_of_edges = np.sum(adj_matrix)
-    coo_src, coo_dst = np.where(adj_matrix)
-
-    # Add the edge information
-    new_row_entry.append(no_of_edges)
-    new_row_entry.extend(coo_src)
-    new_row_entry.extend(coo_dst)
-
+    # Add in index and label information
+    new_row_entry[0] = i
+    new_row_entry[1] = label
     return new_row_entry
 
 
@@ -294,12 +174,13 @@ Script to create the CSV files.
 """
 import time
 def main():
-    creator = CSV_Dataset_Writer("data/csv/", MyMNIST, 16, Partition.CuPID, chunksize=50, overwrite=False)
+    creator = CSV_Dataset_Writer("data/csv/", MyMedMNIST, 16, Partition.CuPID, 
+                                 chunksize=50, overwrite=False, num_workers=28)
     start = time.perf_counter()
     creator.create_csv_files(verbose=True)
     end = time.perf_counter()
     return end - start
 
 if __name__ == '__main__':
-    t = main()
-    print(t)
+    time_taken = main()
+    print(f"Time taken: {time_taken/60} minutes")

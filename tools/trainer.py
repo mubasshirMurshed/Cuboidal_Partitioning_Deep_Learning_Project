@@ -24,9 +24,6 @@ import heapq
 HYPHEN_COUNT = 80
 
 # TODO: Make datamodule has num_classes instead?
-# TODO: Think of a better way of validation final metrics
-# TODO: Add top_k
-# TODO: Add k-fold functionality
 
 class Trainer():
     """

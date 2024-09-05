@@ -8,8 +8,6 @@ import numpy as np
 from typing import Callable, Dict
 from abc import ABC, abstractmethod
 
-# TODO: Add k-fold functionality
-# TODO: Fix abs paths
 
 # Root directories to dataset sources
 MNIST_ROOT = "data/source/MNIST/"

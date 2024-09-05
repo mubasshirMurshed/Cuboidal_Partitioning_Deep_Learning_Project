@@ -8,8 +8,6 @@ from data.data_classes import SourceDataset
 from enums import Split, Partition
 import signal
 
-# TODO: Add k-fold functionality
-# TODO: Fix num workers by putting main.py in a main() call
 
 def worker_init(x):
     signal.signal(signal.SIGINT, signal.SIG_IGN)
