@@ -17,10 +17,11 @@ CIFAR10_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\sour
 MEDMNIST_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\MedMNIST"
 OMNIGLOT_ROOT = r"D:\Python\Cuboidal_Partitioning_Deep_Learning_Project\data\source\Omniglot"
 
-"""
-Base Dataset class to encapsulate links to training, validation and test datasets.
-"""
+
 class SourceDataset(ABC):
+    """
+    Base Dataset class to encapsulate links to training, validation and test datasets.
+    """
     @staticmethod
     @abstractmethod
     def name() -> str:
@@ -39,10 +40,10 @@ class SourceDataset(ABC):
         ...
 
 
-"""
-Wrapper of the MNIST dataset.
-"""
 class MyMNIST(SourceDataset):
+    """
+    Wrapper of the MNIST dataset.
+    """
     @staticmethod
     def name() -> str:
         return "MNIST"
@@ -74,10 +75,10 @@ class MyMNIST(SourceDataset):
         return test_dataset
 
 
-"""
-Wrapper of the CIFAR-10 dataset.
-"""
 class MyCIFAR_10(SourceDataset):
+    """
+    Wrapper of the CIFAR-10 dataset.
+    """
     @staticmethod
     def name() -> str:
         return "CIFAR10"
@@ -109,10 +110,10 @@ class MyCIFAR_10(SourceDataset):
         return test_dataset
 
 
-"""
-Wrapper of the MedMNIST dataset.
-"""
 class MyMedMNIST(SourceDataset):
+    """
+    Wrapper of the MedMNIST dataset.
+    """
     @staticmethod
     def name() -> str:
         return "MedMNIST"
@@ -141,12 +142,12 @@ class MyMedMNIST(SourceDataset):
         return test_dataset
 
 
-"""
-Custom dataset folder class for omniglot split recognition. This class will allocate a specific number
-of each character of each alphabet to be in the training, validation and testing dataset, maintaining
-a balance between classes in terms of characters.
-"""
 class OmniglotDatasetFolder(DatasetFolder):
+    """
+    Custom dataset folder class for omniglot split recognition. This class will allocate a specific number
+    of each character of each alphabet to be in the training, validation and testing dataset, maintaining
+    a balance between classes in terms of characters.
+    """
     def __init__(self, root: str, split: str, transform=None) -> None:
         """
         Initialises the folder structure using DatasetFolder to find classes, but saves split as an attribute to
@@ -155,7 +156,6 @@ class OmniglotDatasetFolder(DatasetFolder):
         self.split = split
         super().__init__(root, default_loader, None, transform, None, None)
     
-
     def make_dataset(self, directory: str, class_to_idx: Dict[str, int], extensions=None, is_valid_file=None, allow_empty: bool=False):
         """
         Makes dataset for a given split by retrieving samples within a specified amount. There are 20 images per character per alphabet. 
@@ -184,10 +184,10 @@ class OmniglotDatasetFolder(DatasetFolder):
         return instances
 
 
-"""
-Wrapper of the Omniglot dataset.
-"""
 class MyOmniglot(SourceDataset):
+    """
+    Wrapper of the Omniglot dataset.
+    """
     @staticmethod
     def name() -> str:
         return "Omniglot"

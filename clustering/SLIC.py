@@ -6,11 +6,11 @@ import pandas as pd
 from skimage.segmentation import slic
 
 
-"""
-Class houses important SLIC partitioning algorithms and encapsulates the information into an easily readable
-pandas DataFrame. Uses the SLICO variant with an initial compactness of 1.
-"""
 class SLIC:
+    """
+    Class houses important SLIC partitioning algorithms and encapsulates the information into an easily readable
+    pandas DataFrame. Uses the SLICO variant with an initial compactness of 1.
+    """
     def __init__(self, I: NDArray) -> None:
         """
         Instantiates a SLIC object of a point cloud datum, I.

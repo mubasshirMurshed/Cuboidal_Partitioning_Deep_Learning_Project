@@ -1,9 +1,10 @@
 import sys
 
-"""
-A custom logger for stdout of the Python to direct output log to a file at end of runtime.
-"""
+
 class Logger():
+    """
+    A custom logger for stdout of the Python to direct output log to a file at end of runtime.
+    """
     def __init__(self, filepath: str, filename: str, verbose: bool) -> None:
         """
         Initialise both streams for stdout.

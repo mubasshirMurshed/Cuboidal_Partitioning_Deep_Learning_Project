@@ -11,6 +11,9 @@ import signal
 # TODO: Add k-fold functionality
 # TODO: Fix num workers by putting main.py in a main() call
 
+def worker_init(x):
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
 class DataModule():
     """
     A base class for data module encapsulation that allows easy instantiation of an organised
@@ -178,7 +181,3 @@ class Graph_DataModule(DataModule):
                                         num_segments=self.num_segments,
                                         **self.features
         )
-
-
-def worker_init(x):
-    signal.signal(signal.SIGINT, signal.SIG_IGN)

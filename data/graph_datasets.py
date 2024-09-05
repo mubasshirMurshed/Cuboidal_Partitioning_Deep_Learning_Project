@@ -417,19 +417,18 @@ class MNISTGraphDataset_Auto_Parallel(InMemoryDataset):
         print('-' * 20)
 
 
-"""
-In memory dataset class that stores the dataset in a .pt file under
-root/dataset/num_segments/processed. Assumes .csv files exist in
-root/dataset/num_segments/raw.
-
-The class will ignore information if it detects that the .pt file is already
-created by specifying its name in the processed_file_names attribute.
-
-Selection of which feature data to include can be done via flags. By default, every value is
-included.
-"""
 class Graph_Dataset_CSV(InMemoryDataset):
-    
+    """
+    In memory dataset class that stores the dataset in a .pt file under
+    root/dataset/num_segments/processed. Assumes .csv files exist in
+    root/dataset/num_segments/raw.
+
+    The class will ignore information if it detects that the .pt file is already
+    created by specifying its name in the processed_file_names attribute.
+
+    Selection of which feature data to include can be done via flags. By default, every value is
+    included.
+    """
     def __init__(self, root: str, name: str, split: Split, mode: Partition, num_segments: int, length: int | None=None,
                        x_center: bool=False, y_center: bool=False, colour: bool=False, width: bool=False, height: bool=False,
                        num_pixels: bool=False, angle: bool=False, stdev: bool=False) -> None:

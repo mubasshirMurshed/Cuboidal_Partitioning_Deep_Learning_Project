@@ -16,22 +16,22 @@ from enums import Split, Partition
 # TODO: Put partition_to_graph function as partition method obtained from inheritance
 # TODO: Move file writing out of mp pool
 
-"""
-A class that is responsible for creating the multiple csv files containing the partitioned data
-for each split. This means a csv file will be created for each split and can be created based on
-the partitioning scheme. The point is to save on partitioning processing time for neural network
-training. Only 2D images are supported. Any feature length is supported. 
-
-Each row in a csv file contains the information of 1 sample. The columns follow a specific reading format.
-First, the ID and label of the data is written. Then the PSNR is recorded, followed by the number of segments
-created, the number of features of the data (RGB = 3 features). Then the shape of the data. Then if N = number 
-of segments, it is followed by N number of data for various pieces of data, where each value corresponds to a
-particular segment. Finally, the number of edges in the adj matrix is encoded followed by the edges in COO format. 
-
-If the first instance of a csv file is detected for a given split and partition, it will stop
-and assume the files already exist.
-"""
 class CSV_Dataset_Creator:
+    """
+    A class that is responsible for creating the multiple csv files containing the partitioned data
+    for each split. This means a csv file will be created for each split and can be created based on
+    the partitioning scheme. The point is to save on partitioning processing time for neural network
+    training. Only 2D images are supported. Any feature length is supported. 
+
+    Each row in a csv file contains the information of 1 sample. The columns follow a specific reading format.
+    First, the ID and label of the data is written. Then the PSNR is recorded, followed by the number of segments
+    created, the number of features of the data (RGB = 3 features). Then the shape of the data. Then if N = number 
+    of segments, it is followed by N number of data for various pieces of data, where each value corresponds to a
+    particular segment. Finally, the number of edges in the adj matrix is encoded followed by the edges in COO format. 
+
+    If the first instance of a csv file is detected for a given split and partition, it will stop
+    and assume the files already exist.
+    """
     def __init__(self, root: str, dataset: Type[SourceDataset], num_segments: int, mode: Partition, max_entries_per_file: int=10000, chunksize: int=200, overwrite: bool=False) -> None:
         """
         Saves attributes, and creates necessary extra data based on mode selected and dataset. Creates links to the raw splits of 

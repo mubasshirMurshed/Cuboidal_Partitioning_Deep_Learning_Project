@@ -6,12 +6,12 @@ from clustering.CuPID import CuPID
 from clustering.SLIC import SLIC
 
 
-"""
-A transform that partitions an image using CuPID and returns the CuPID object after
-partitioning has been done. Only suitable for 2D spatial data. Data in the shape of
-(H x W) will have an extra channel of 1 added on to make it (H x W x 1).
-"""
 class CuPIDPartition:
+    """
+    A transform that partitions an image using CuPID and returns the CuPID object after
+    partitioning has been done. Only suitable for 2D spatial data. Data in the shape of
+    (H x W) will have an extra channel of 1 added on to make it (H x W x 1).
+    """
     def __init__(self, num_cuboids, b=0) -> None:
         
         self.num_cuboids = num_cuboids
@@ -34,12 +34,12 @@ class CuPIDPartition:
         return c
 
 
-"""
-A transform that partitions an image using CuPID and returns the reconstruction.
-Only suitable for 2D spatial data. Data in the shape of (H x W) will have an extra
-channel of 1 added on to make it (H x W x 1).
-"""
 class CuPIDTransform:
+    """
+    A transform that partitions an image using CuPID and returns the reconstruction.
+    Only suitable for 2D spatial data. Data in the shape of (H x W) will have an extra
+    channel of 1 added on to make it (H x W x 1).
+    """
     def __init__(self, num_cuboids, b=0) -> None:
         self.num_cuboids = num_cuboids
         self.b = b
@@ -64,12 +64,12 @@ class CuPIDTransform:
         return I_r.copy()
 
 
-"""
-A transform that partitions an image using SLIC and returns the SLIC object after
-partitioning has been done. Only suitable for 2D spatial data. Data in the shape of
-(H x W) will have an extra channel of 1 added on to make it (H x W x 1).
-"""
 class SLICPartition:
+    """
+    A transform that partitions an image using SLIC and returns the SLIC object after
+    partitioning has been done. Only suitable for 2D spatial data. Data in the shape of
+    (H x W) will have an extra channel of 1 added on to make it (H x W x 1).
+    """
     def __init__(self, num_segments, compactness=1) -> None:
         self.num_segments = num_segments
         self.compactness = compactness
@@ -91,12 +91,12 @@ class SLICPartition:
         return s
 
 
-"""
-A transform that partitions an image using SLIC and returns the reconstruction. Only suitable 
-for 2D spatial data. Data in the shape of (H x W) will have an extra channel of 1 added on to 
-make it (H x W x 1).
-"""
 class SLICTransform:
+    """
+    A transform that partitions an image using SLIC and returns the reconstruction. Only suitable 
+    for 2D spatial data. Data in the shape of (H x W) will have an extra channel of 1 added on to 
+    make it (H x W x 1).
+    """
     def __init__(self, num_segments, compactness=1) -> None:
         self.num_segments = num_segments
         self.compactness = compactness
