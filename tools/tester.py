@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from data.graph_datasets import *
-from models.mnistGAT2 import MNIST_GAT2
+from models.GAT_Modelv2 import MNIST_GAT2
 import numpy as np
 import matplotlib.pyplot as plt
 import math

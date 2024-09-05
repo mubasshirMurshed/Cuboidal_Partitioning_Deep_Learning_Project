@@ -4,7 +4,7 @@ from torch_geometric.nn import GATv2Conv
 import torch.nn.functional as F
 from torch_geometric.nn.aggr import MeanAggregation, StdAggregation, MaxAggregation
 
-class MNIST_GAT2(torch.nn.Module):
+class GAT_Modelv2(torch.nn.Module):
     def __init__(self, num_features: int, num_classes: int):
         # Init parent
         super().__init__()

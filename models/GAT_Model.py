@@ -4,8 +4,8 @@ from torch_geometric.nn import GATv2Conv
 import torch.nn.functional as F
 from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
 
-class MNIST_GAT(torch.nn.Module):
-    def __init__(self, num_features: int):
+class GAT_Model(torch.nn.Module):
+    def __init__(self, num_features: int, num_classes: int):
         # Init parent
         super().__init__()
 
@@ -15,7 +15,7 @@ class MNIST_GAT(torch.nn.Module):
         self.conv2 = GATv2Conv(in_channels=64*2, out_channels=64, heads=2, concat=False)
 
         # Output layer
-        self.out = nn.Linear(64*2, 10)
+        self.out = nn.Linear(64*2, num_classes)
 
     def forward(self, x, edge_index, batch_index):
         # First Conv layer

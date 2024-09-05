@@ -5,7 +5,7 @@ os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 import torch
 from torch import nn
 from data.datamodules import Graph_DataModule_CSV, Graph_DataModule
-from models.mnistGAT2 import MNIST_GAT2
+from models.GAT_Modelv2 import GAT_Modelv2
 from data.data_classes import MyMNIST, MyCIFAR_10, MyMedMNIST, MyOmniglot
 from tools import Trainer
 import torch_geometric
@@ -41,7 +41,7 @@ def main():
 
     # Instantiate model
     num_classes = 10                # <------- CHANGE THIS BETWEEN DATASETS!!!!!!!!!!!!
-    model = MNIST_GAT2(num_features=data_module.train_set.num_features, num_classes=num_classes)
+    model = GAT_Modelv2(num_features=data_module.train_set.num_features, num_classes=num_classes)
 
     # Initialise loss function, optimizer and LR scheduler
     loss_fn = nn.CrossEntropyLoss()
