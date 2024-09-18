@@ -6,7 +6,6 @@ from medmnist import OrganAMNIST
 import os
 import numpy as np
 from typing import Callable, Dict
-from abc import ABC, abstractmethod
 
 
 # Root directories to dataset sources
@@ -24,6 +23,9 @@ class SourceDataset():
         self.name = name
         self.shape = shape
         self.num_classes = num_classes
+
+    def idx_to_class(self, i: int) -> str:
+        pass
 
     def train_dataset(self, transform=None) -> Dataset:
         pass
@@ -45,29 +47,32 @@ class MyMNIST(SourceDataset):
         """
         super().__init__(name="MNIST", shape=(28, 28, 1), num_classes=10)
         self.transform = transform
+
+    def idx_to_class(self, i: int) -> str:
+        return str(i)
         
     def train_dataset(self, transform=None) -> Dataset:
-        if self.transform is None:
-            self.transform = transform
-        ds = MNIST(root=MNIST_ROOT, train=True, transform=self.transform)
+        if transform is None:
+            transform = self.transform
+        ds = MNIST(root=MNIST_ROOT, train=True, transform=transform)
         train_idx = np.load("data/split_indices/MNIST_Train_Idx.npy")
         train_dataset = Subset(ds, train_idx)
         train_dataset.data_shape = self.shape
         return train_dataset
 
     def validation_dataset(self, transform=None) -> Dataset:
-        if self.transform is None:
-            self.transform = transform
-        ds = MNIST(root=MNIST_ROOT, train=True, transform=self.transform)
+        if transform is None:
+            transform = self.transform
+        ds = MNIST(root=MNIST_ROOT, train=True, transform=transform)
         val_idx = np.load("data/split_indices/MNIST_Validation_Idx.npy")
         validation_datset = Subset(ds, val_idx)
         validation_datset.data_shape = self.shape
         return validation_datset
 
     def test_dataset(self, transform=None) -> Dataset:
-        if self.transform is None:
-            self.transform = transform
-        test_dataset = MNIST(root=MNIST_ROOT, train=False, transform=self.transform)
+        if transform is None:
+            transform = self.transform
+        test_dataset = MNIST(root=MNIST_ROOT, train=False, transform=transform)
         test_dataset.data_shape = self.shape
         return test_dataset
 
@@ -83,28 +88,32 @@ class MyCIFAR_10(SourceDataset):
         super().__init__(name="CIFAR10", shape=(32, 32, 3), num_classes=10)
         self.transform = transform
 
+    def idx_to_class(self, i: int) -> str:
+        classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+        return classes[i]
+
     def train_dataset(self, transform=None) -> Dataset:
-        if self.transform is None:
-            self.transform = transform
-        dataset = CIFAR10(root=CIFAR10_ROOT, train=True, transform=self.transform)
+        if transform is None:
+            transform = self.transform
+        dataset = CIFAR10(root=CIFAR10_ROOT, train=True, transform=transform)
         train_idx = np.load("data/split_indices/CIFAR_Train_Idx.npy")
         train_dataset = Subset(dataset, train_idx)
         train_dataset.data_shape = self.shape
         return train_dataset
 
     def validation_dataset(self, transform=None) -> Dataset:
-        if self.transform is None:
-            self.transform = transform
-        dataset = CIFAR10(root=CIFAR10_ROOT, train=True, transform=self.transform)
+        if transform is None:
+            transform = self.transform
+        dataset = CIFAR10(root=CIFAR10_ROOT, train=True, transform=transform)
         val_idx = np.load("data/split_indices/CIFAR_Validation_Idx.npy")
         validation_datset = Subset(dataset, val_idx)
         validation_datset.data_shape = self.shape
         return validation_datset
 
     def test_dataset(self, transform=None) -> Dataset:
-        if self.transform is None:
-            self.transform = transform
-        test_dataset = CIFAR10(root=CIFAR10_ROOT, train=False, transform=self.transform)
+        if transform is None:
+            transform = self.transform
+        test_dataset = CIFAR10(root=CIFAR10_ROOT, train=False, transform=transform)
         test_dataset.data_shape = self.shape
         return test_dataset
 
@@ -121,24 +130,41 @@ class MyMedMNIST(SourceDataset):
         self.transform = transform
         self.size = size
 
+    def idx_to_class(self, i: int) -> str:
+        i = i.item()
+        classes = {
+            '0': 'bladder',
+            '1': 'femur-left',
+            '2': 'femur-right',
+            '3': 'heart',
+            '4': 'kidney-left',
+            '5': 'kidney-right',
+            '6': 'liver',
+            '7': 'lung-left',
+            '8': 'lung-right',
+            '9': 'pancreas',
+            '10': 'spleen'
+        }
+        return classes[f"{i}"]
+
     def train_dataset(self, transform=None) -> Dataset:
-        if self.transform is None:
-            self.transform = transform
-        train_dataset = OrganAMNIST(root=MEDMNIST_ROOT, split="train", transform=self.transform, size=self.size)
+        if transform is None:
+            transform = self.transform
+        train_dataset = OrganAMNIST(root=MEDMNIST_ROOT, split="train", transform=transform, size=self.size)
         train_dataset.data_shape = self.shape
         return train_dataset
 
     def validation_dataset(self, transform=None) -> Dataset:
-        if self.transform is None:
-            self.transform = transform
-        validation_datset = OrganAMNIST(root=MEDMNIST_ROOT, split="val", transform=self.transform, size=self.size)
+        if transform is None:
+            transform = self.transform
+        validation_datset = OrganAMNIST(root=MEDMNIST_ROOT, split="val", transform=transform, size=self.size)
         validation_datset.data_shape = self.shape
         return validation_datset
 
     def test_dataset(self, transform=None) -> Dataset:
-        if self.transform is None:
-            self.transform = transform
-        test_dataset = OrganAMNIST(root=MEDMNIST_ROOT, split="test", transform=self.transform, size=self.size)
+        if transform is None:
+            transform = self.transform
+        test_dataset = OrganAMNIST(root=MEDMNIST_ROOT, split="test", transform=transform, size=self.size)
         test_dataset.data_shape = self.shape
         return test_dataset
 
@@ -201,23 +227,27 @@ class MyOmniglot(SourceDataset):
         else:
             self.transform = transforms.Compose([transforms.Grayscale(), transform])
 
+    def idx_to_class(self, i: int) -> str:
+        classes = ['Bengali', 'Futurama', 'Hebrew', 'Latin']
+        return classes[i]
+
     def train_dataset(self, transform=None) -> Dataset:
-        if self.transform is None:
-            self.transform = transform
-        train_dataset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="train", transform=self.transform)
+        if transform is None:
+            transform = self.transform
+        train_dataset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="train", transform=transform)
         train_dataset.data_shape = self.shape
         return train_dataset
 
     def validation_dataset(self, transform=None) -> Dataset:
-        if self.transform is None:
-            self.transform = transform
-        validation_datset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="val", transform=self.transform)
+        if transform is None:
+            transform = self.transform
+        validation_datset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="val", transform=transform)
         validation_datset.data_shape = self.shape
         return validation_datset
 
     def test_dataset(self, transform=None) -> Dataset:
-        if self.transform is None:
-            self.transform = transform
-        test_dataset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="test", transform=self.transform)
+        if transform is None:
+            transform = self.transform
+        test_dataset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="test", transform=transform)
         test_dataset.data_shape = self.shape
         return test_dataset

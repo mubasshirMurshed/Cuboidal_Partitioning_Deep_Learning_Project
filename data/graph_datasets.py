@@ -110,7 +110,7 @@ class Graph_Dataset(Dataset):
         # Create edge COO sparse matrix
         num_edges = int(img_data[start+num_nodes*(6+2*num_colours)])
         edge_start_idx = start+num_nodes*(6+2*num_colours)+1
-        edge_index = img_data.values[edge_start_idx : edge_start_idx + num_edges*2].astype(np.int64)
+        edge_index = img_data[edge_start_idx : edge_start_idx + num_edges*2].astype(np.int64)
         edge_index = torch.tensor(edge_index).reshape([2, num_edges])
         
         # Get label

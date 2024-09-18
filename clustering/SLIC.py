@@ -227,4 +227,4 @@ class SLIC:
         new_row_entry.extend(coo_src)
         new_row_entry.extend(coo_dst)
 
-        return new_row_entry
+        return np.asarray(new_row_entry)

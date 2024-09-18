@@ -1,9 +1,9 @@
 from torch.utils.data import DataLoader as TorchDataLoader
 from typing import Dict, Type
 from torch_geometric.loader import DataLoader as PyGDataLoader
-from data.transforms import CuPIDTransform, SLICTransform, CuPIDPartition, SLICPartition
+from .transforms import CuPIDTransform, SLICTransform, CuPIDPartition, SLICPartition
 from .graph_datasets import Graph_Dataset, Graph_Dataset_CSV
-from data.data_classes import SourceDataset
+from .data_classes import SourceDataset
 from enums import Split, Partition
 import signal
 
@@ -106,9 +106,9 @@ class Graph_DataModule_CSV(DataModule):
 
         # Create references to the partitioned datasets
         if mode is Partition.CuPID:
-            transform = CuPIDTransform(num_segments) 
+            transform = CuPIDPartition(num_segments) 
         elif mode is Partition.SLIC:
-            transform = SLICTransform(num_segments)
+            transform = SLICPartition(num_segments)
         else:
             raise ValueError(f"Supplied 'mode' argument not a registered partitioning strategy. Got {self.mode} but should be been a Partition Enum.")
         self.partition_train_set = self.dataset.train_dataset(transform)
@@ -192,7 +192,7 @@ class Graph_DataModule(DataModule):
         Save attributes.
 
         Args:
-        - dataset: Type[SourceDataset]
+        - dataset: SourceDataset
             - The dataset to be referred to
         - num_segments: int
             - Number of segments to partition the data into
