@@ -5,18 +5,17 @@ import pandas as pd
 from tqdm import tqdm
 import numpy as np
 import os
-from .transforms import CuPIDPartition, SLICPartition
+from data.data_classes import SourceDataset
 from enums import Split, Partition
 
 
 class Graph_Dataset(Dataset):
-    def __init__(self, dataset, mode: Partition, num_segments: int, x_center: bool=False,
+    def __init__(self, dataset: SourceDataset, num_segments: int, x_center: bool=False,
                        y_center: bool=False, colour: bool=False, width: bool=False, height: bool=False, 
                        num_pixels: bool=False, angle: bool=False, st_dev: bool=False) -> None:
         # Set up attributes
         super().__init__()
         self.dataset = dataset
-        self.mode = mode
         self.num_segments = num_segments
         self.colour = colour
         self.x_center = x_center
@@ -46,20 +45,13 @@ class Graph_Dataset(Dataset):
         if self.stdev:
             self.ablation_code += 'S'
 
-        if self.mode is Partition.CuPID:
-            self.partition = CuPIDPartition(self.num_segments)
-        elif self.mode is Partition.SLIC:
-            self.partition = SLICPartition(self.num_segments)
-        else:
-            print("Error, mode is not recognised or supported.")
-            return
 
     def len(self) -> int:
         return len(self.dataset)
     
+    
     def get(self, idx) -> Data:
-        img, label = self.dataset[idx]
-        partition_object = self.partition(img)
+        partition_object, label = self.dataset[idx]
         img_data = partition_object.transform_to_csv_data()
 
         # Create space for node feature matrix

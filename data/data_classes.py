@@ -16,58 +16,57 @@ MEDMNIST_ROOT = "data/source/MedMNIST/"
 OMNIGLOT_ROOT = "data/source/Omniglot/"
 
 
-class SourceDataset(ABC):
+class SourceDataset():
     """
     Base Dataset class to encapsulate links to training, validation and test datasets.
     """
-    @staticmethod
-    @abstractmethod
-    def name() -> str:
-        ...
+    def __init__(self, name :str, shape: tuple[int, int, int], num_classes: int) -> None:
+        self.name = name
+        self.shape = shape
+        self.num_classes = num_classes
 
-    @abstractmethod
-    def train_dataset(self) -> Dataset:
-        ...
+    def train_dataset(self, transform=None) -> Dataset:
+        pass
 
-    @abstractmethod
-    def validation_dataset(self) -> Dataset:
-        ...
+    def validation_dataset(self, transform=None) -> Dataset:
+        pass
 
-    @abstractmethod
-    def test_dataset(self) -> Dataset:
-        ...
-
+    def test_dataset(self, transform=None) -> Dataset:
+        pass
+        
 
 class MyMNIST(SourceDataset):
     """
     Wrapper of the MNIST dataset.
     """
-    @staticmethod
-    def name() -> str:
-        return "MNIST"
-
     def __init__(self, transform: Callable | None=None) -> None:
         """
         Sets up the training, validation, and testing dataset of MNIST.
         """
+        super().__init__(name="MNIST", shape=(28, 28, 1), num_classes=10)
         self.transform = transform
-        self.shape = (28, 28, 1)
         
-    def train_dataset(self) -> Dataset:
+    def train_dataset(self, transform=None) -> Dataset:
+        if self.transform is None:
+            self.transform = transform
         ds = MNIST(root=MNIST_ROOT, train=True, transform=self.transform)
         train_idx = np.load("data/split_indices/MNIST_Train_Idx.npy")
         train_dataset = Subset(ds, train_idx)
         train_dataset.data_shape = self.shape
         return train_dataset
 
-    def validation_dataset(self) -> Dataset:
+    def validation_dataset(self, transform=None) -> Dataset:
+        if self.transform is None:
+            self.transform = transform
         ds = MNIST(root=MNIST_ROOT, train=True, transform=self.transform)
         val_idx = np.load("data/split_indices/MNIST_Validation_Idx.npy")
         validation_datset = Subset(ds, val_idx)
         validation_datset.data_shape = self.shape
         return validation_datset
 
-    def test_dataset(self) -> Dataset:
+    def test_dataset(self, transform=None) -> Dataset:
+        if self.transform is None:
+            self.transform = transform
         test_dataset = MNIST(root=MNIST_ROOT, train=False, transform=self.transform)
         test_dataset.data_shape = self.shape
         return test_dataset
@@ -76,33 +75,35 @@ class MyMNIST(SourceDataset):
 class MyCIFAR_10(SourceDataset):
     """
     Wrapper of the CIFAR-10 dataset.
-    """
-    @staticmethod
-    def name() -> str:
-        return "CIFAR10"
-    
+    """   
     def __init__(self, transform: Callable | None=None) -> None:
         """
         Sets up the training, validation, and testing dataset of CIFAR-10.
         """
+        super().__init__(name="CIFAR10", shape=(32, 32, 3), num_classes=10)
         self.transform = transform
-        self.shape = (32, 32, 3)
 
-    def train_dataset(self) -> Dataset:
+    def train_dataset(self, transform=None) -> Dataset:
+        if self.transform is None:
+            self.transform = transform
         dataset = CIFAR10(root=CIFAR10_ROOT, train=True, transform=self.transform)
         train_idx = np.load("data/split_indices/CIFAR_Train_Idx.npy")
         train_dataset = Subset(dataset, train_idx)
         train_dataset.data_shape = self.shape
         return train_dataset
 
-    def validation_dataset(self) -> Dataset:
+    def validation_dataset(self, transform=None) -> Dataset:
+        if self.transform is None:
+            self.transform = transform
         dataset = CIFAR10(root=CIFAR10_ROOT, train=True, transform=self.transform)
         val_idx = np.load("data/split_indices/CIFAR_Validation_Idx.npy")
         validation_datset = Subset(dataset, val_idx)
         validation_datset.data_shape = self.shape
         return validation_datset
 
-    def test_dataset(self) -> Dataset:
+    def test_dataset(self, transform=None) -> Dataset:
+        if self.transform is None:
+            self.transform = transform
         test_dataset = CIFAR10(root=CIFAR10_ROOT, train=False, transform=self.transform)
         test_dataset.data_shape = self.shape
         return test_dataset
@@ -111,30 +112,32 @@ class MyCIFAR_10(SourceDataset):
 class MyMedMNIST(SourceDataset):
     """
     Wrapper of the MedMNIST dataset.
-    """
-    @staticmethod
-    def name() -> str:
-        return "MedMNIST"
-    
+    """   
     def __init__(self, transform: Callable | None=None, size: int=28) -> None:
         """
         Sets up the training, validation, and testing dataset of MedMNIST OrganAMNIST.
         """
+        super().__init__(name="MedMNIST", shape=(size, size, 1), num_classes=11)
         self.transform = transform
         self.size = size
-        self.shape = (size, size, 1)
 
-    def train_dataset(self) -> Dataset:
+    def train_dataset(self, transform=None) -> Dataset:
+        if self.transform is None:
+            self.transform = transform
         train_dataset = OrganAMNIST(root=MEDMNIST_ROOT, split="train", transform=self.transform, size=self.size)
         train_dataset.data_shape = self.shape
         return train_dataset
 
-    def validation_dataset(self) -> Dataset:
+    def validation_dataset(self, transform=None) -> Dataset:
+        if self.transform is None:
+            self.transform = transform
         validation_datset = OrganAMNIST(root=MEDMNIST_ROOT, split="val", transform=self.transform, size=self.size)
         validation_datset.data_shape = self.shape
         return validation_datset
 
-    def test_dataset(self) -> Dataset:
+    def test_dataset(self, transform=None) -> Dataset:
+        if self.transform is None:
+            self.transform = transform
         test_dataset = OrganAMNIST(root=MEDMNIST_ROOT, split="test", transform=self.transform, size=self.size)
         test_dataset.data_shape = self.shape
         return test_dataset
@@ -186,32 +189,35 @@ class MyOmniglot(SourceDataset):
     """
     Wrapper of the Omniglot dataset.
     """
-    @staticmethod
-    def name() -> str:
-        return "Omniglot"
-    
     def __init__(self, transform: Callable | None=None) -> None:
         """
         Sets up the training, validation, and testing dataset of Omniglot.
         """
+        super().__init__(name="Omniglot", shape=(105, 105, 1), num_classes=4)
+        
         # Turn images to Grayscale since they load as RGB
         if transform is None:
             self.transform = transforms.Grayscale()
         else:
             self.transform = transforms.Compose([transforms.Grayscale(), transform])
-        self.shape = (105, 105, 1)
 
-    def train_dataset(self) -> Dataset:
+    def train_dataset(self, transform=None) -> Dataset:
+        if self.transform is None:
+            self.transform = transform
         train_dataset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="train", transform=self.transform)
         train_dataset.data_shape = self.shape
         return train_dataset
 
-    def validation_dataset(self) -> Dataset:
+    def validation_dataset(self, transform=None) -> Dataset:
+        if self.transform is None:
+            self.transform = transform
         validation_datset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="val", transform=self.transform)
         validation_datset.data_shape = self.shape
         return validation_datset
 
-    def test_dataset(self) -> Dataset:
+    def test_dataset(self, transform=None) -> Dataset:
+        if self.transform is None:
+            self.transform = transform
         test_dataset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="test", transform=self.transform)
         test_dataset.data_shape = self.shape
         return test_dataset

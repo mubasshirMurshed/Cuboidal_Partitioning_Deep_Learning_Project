@@ -31,7 +31,7 @@ class Trainer():
     certain procedures and checks.
     """
     def __init__(self,
-            model: nn.Module, data_module: DataModule, num_classes: int, 
+            model: nn.Module, data_module: DataModule, 
             loss_fn: nn.Module, optimizer: Optimizer, max_epochs: int, 
             hparams: Dict[str, Any], scheduler: LRScheduler | None = None, save_every_n_epoch: int=1, 
             allow_log: bool=True, print_cm: bool=True, resume_from_ckpt: str | None=None, 
@@ -46,8 +46,6 @@ class Trainer():
             - Model being trained
         - data_module: DataModule
             - A data module that houses the data loaders for training, validation and testing
-        - num_classes: int
-            - Number of classes in dataset
         - loss_fn: Module
             - Function used to calculate loss
         - optimizer: Optimizer
@@ -93,7 +91,6 @@ class Trainer():
         self.scheduler = scheduler
         self.save_every_n_epoch = save_every_n_epoch
         self.allow_log = allow_log
-        self.num_classes = num_classes
         self.print_cm = print_cm
         self.resume_from_ckpt = resume_from_ckpt
         self.is_graph_model = is_graph_model
@@ -104,6 +101,7 @@ class Trainer():
 
         # Create and setup dataloaders
         self.data_module = data_module
+        self.num_classes = data_module.num_classes
         self.training_loader = self.data_module.train_dataloader()
         self.validation_loader = self.data_module.val_dataloader()
         self.test_loader = self.data_module.test_dataloader()
@@ -180,7 +178,7 @@ class Trainer():
 
         # Print out what dataset is being trained on
         print('-' * HYPHEN_COUNT)
-        print(f"Dataset:\t\t{self.data_module.source.name().upper()}")
+        print(f"Dataset:\t\t{self.data_module.dataset.name().upper()}")
         print('-' * HYPHEN_COUNT)
 
         # Print out partitioning algorithm and segment number
@@ -191,7 +189,7 @@ class Trainer():
         print('-' * HYPHEN_COUNT)
 
         # Print ablation code
-        print(f"Ablation:\t\t{self.data_module.train_set.ablation_code}")
+        print(f"Ablation:\t\t{self.data_module.graph_train_set.ablation_code}")
         print('-' * HYPHEN_COUNT)
 
         # Print model name

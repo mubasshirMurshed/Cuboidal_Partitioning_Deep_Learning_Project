@@ -30,8 +30,8 @@ def main():
 
     # Create data module
     features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True}
-    data_module = Graph_DataModule_CSV(
-        dataset=MyMNIST,
+    dm = Graph_DataModule_CSV(
+        dataset=MyMNIST(),
         num_segments=64,
         batch_size=hparams["batch_size"],
         mode=Partition.CuPID,
@@ -40,8 +40,7 @@ def main():
     )
 
     # Instantiate model
-    num_classes = 10                # <------- CHANGE THIS BETWEEN DATASETS!!!!!!!!!!!!
-    model = GAT_Modelv2(num_features=data_module.train_set.num_features, num_classes=num_classes)
+    model = GAT_Modelv2(num_features=dm.num_features, num_classes=dm.num_classes)
 
     # Initialise loss function, optimizer and LR scheduler
     loss_fn = nn.CrossEntropyLoss()
@@ -62,8 +61,8 @@ def main():
     is_graph_model = True
 
     # Create trainer
-    trainer = Trainer(model=model, data_module=data_module, loss_fn=loss_fn, optimizer=optimizer, scheduler=scheduler, hparams=hparams,
-                    save_every_n_epoch=save_every_n_epoch, allow_log=allow_log, num_classes=num_classes, is_graph_model=is_graph_model,
+    trainer = Trainer(model=model, data_module=dm, loss_fn=loss_fn, optimizer=optimizer, scheduler=scheduler, hparams=hparams,
+                    save_every_n_epoch=save_every_n_epoch, allow_log=allow_log, is_graph_model=is_graph_model,
                     resume_from_ckpt=resume_from_ckpt, max_epochs=hparams["max_epochs"], save_top_k=save_top_k)
     
     # Train model

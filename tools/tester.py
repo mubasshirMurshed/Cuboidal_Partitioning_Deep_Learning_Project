@@ -28,7 +28,7 @@ test_metrics = MetricCollection( {
 # Initialise datamodule and model
 features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True, "st_dev":True}
 data_module = Graph_DataModule_CSV(name="mnist", num_segments=32, batch_size=100, mode="SP", features=features)
-model = MNIST_GAT2(num_features=data_module.train_set.num_features, num_classes=num_classes)
+model = MNIST_GAT2(num_features=data_module.graph_train_set.num_features, num_classes=num_classes)
 
 # Load model
 model_ckpt = r"saved\MNIST_SP_32_DataModule\XYCWHS\MNIST_GAT2\Run_ID__2024-05-21__16-03-12\checkpoints\epoch=50-val_loss=0.1534-val_acc=0.9522.pt"
@@ -38,7 +38,7 @@ model = model.to(device=device)
 # Run one cycle of test dataset, collating predictions
 model.eval()
 running_loss = 0
-predictions = np.zeros((len(data_module.test_set), 2), dtype=np.int64)
+predictions = np.zeros((len(data_module.graph_test_set), 2), dtype=np.int64)
 offset = 0
 with torch.no_grad():
     for batch in tqdm(data_module.test_dataloader(), leave=False):
