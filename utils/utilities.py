@@ -19,7 +19,7 @@ def dirManager(model: nn.Module, data_module: DataModule) -> Tuple[str, str, str
     """
     # Get name of the model and data module class
     modelName = model._get_name()
-    dataset_name = data_module.dataset.name().upper()
+    dataset_name = data_module.dataset.name.upper()
     partition_mode = data_module.mode.value.upper()
     num_segments = data_module.num_segments
     dataModuleName = f"{dataset_name}_{partition_mode}_{num_segments}_DataModule"

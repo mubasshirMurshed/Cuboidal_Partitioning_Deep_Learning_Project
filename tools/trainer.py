@@ -1,29 +1,28 @@
 # Imports
 import sys
+import os
+from data.datamodules import DataModule
+from utils.logger import Logger
+from utils.utilities import dirManager, count_trainable_parameters, count_untrainable_parameters, getPythonFilePath, prettyprint
+from enums import Partition
 from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent))
-import torch
+from typing import Dict, Any
+from shutil import copy
+import csv
+import heapq
+import numpy as np
 from tqdm import tqdm
+import torch
 import torch.nn as nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.tensorboard import SummaryWriter
-from typing import Dict, Any
-from utils.logger import Logger
-from utils.utilities import dirManager, count_trainable_parameters, count_untrainable_parameters, getPythonFilePath, prettyprint
-import os
-from data.datamodules import DataModule
-from shutil import copy
 from torchmetrics.classification import MulticlassAccuracy, MulticlassConfusionMatrix
 from torchmetrics import MetricCollection
 from torchinfo import summary
-import csv
-from enums import Partition
-import heapq
+
 
 HYPHEN_COUNT = 80
-
-# TODO: Make datamodule has num_classes instead?
 
 class Trainer():
     """
@@ -31,12 +30,22 @@ class Trainer():
     certain procedures and checks.
     """
     def __init__(self,
-            model: nn.Module, data_module: DataModule, 
-            loss_fn: nn.Module, optimizer: Optimizer, max_epochs: int, 
-            hparams: Dict[str, Any], scheduler: LRScheduler | None = None, save_every_n_epoch: int=1, 
-            allow_log: bool=True, print_cm: bool=True, resume_from_ckpt: str | None=None, 
-            is_graph_model: bool=True, verbose: bool=True, log_to_csv: bool=True,
-            allow_summary: bool=True, save_top_k: int=-1
+            model: nn.Module,
+            data_module: DataModule, 
+            loss_fn: nn.Module,
+            hparams: Dict[str, Any] | None = None,
+            max_epochs: int = 100,
+            optimizer: Optimizer | None = None,
+            scheduler: LRScheduler | None = None,
+            save_every_n_epoch: int=1,
+            allow_log: bool=True,
+            print_cm: bool=True,
+            resume_from_ckpt: str | None=None,
+            is_graph_model: bool=True,
+            verbose: bool=True,
+            log_to_csv: bool=True,
+            allow_summary: bool=True, 
+            save_top_k: int=-1
         ) -> None:
         """
         Saves model, datasets/loaders and all flags passed. Sets up metrics to track as well.
@@ -178,7 +187,7 @@ class Trainer():
 
         # Print out what dataset is being trained on
         print('-' * HYPHEN_COUNT)
-        print(f"Dataset:\t\t{self.data_module.dataset.name().upper()}")
+        print(f"Dataset:\t\t{self.data_module.dataset.name.upper()}")
         print('-' * HYPHEN_COUNT)
 
         # Print out partitioning algorithm and segment number
@@ -351,6 +360,7 @@ class Trainer():
         # Load model is a checkpoint is given, otherwise use the best model saved
         if model_ckpt is not None:
             self.model.load_state_dict(torch.load(model_ckpt))
+            self.log_dir = str(Path(model_ckpt).parent.parent)
         elif self.allow_log:
             if best_val_acc:
                 self.model.load_state_dict(torch.load(self.ckpt_dir + "best.pt"))
@@ -365,7 +375,11 @@ class Trainer():
             test_fn = self.test_
         else:
             test_fn = self.test_G
-        avg_test_loss = test_fn()
+        avg_test_loss, mislabelled_items = test_fn()
+
+        # Save mislabelled items
+        if self.allow_log:
+            np.save(self.log_dir + "mislabelled.npy", mislabelled_items)
 
         # Compute metrics
         test_metric_results = self.test_metrics.compute()
@@ -386,6 +400,7 @@ class Trainer():
             prettyprint(test_metric_results["Confusion Matrix"].to("cpu").numpy())
             print('-' * HYPHEN_COUNT)
         
+        return mislabelled_items
 
     def train(self):
         """
@@ -536,10 +551,11 @@ class Trainer():
         """
         Tests the model's performance over the test dataset provided using graph neural networks.
         """
-        # TODO: Add prediction stuff in here anyway as one of the returns
         # Puts the model in evaluation mode
         self.model.eval()
         running_loss = 0
+        mislabelled = []
+        offset = 0
 
         # Save memory by not saving gradients which we do not need 
         with torch.no_grad():
@@ -555,7 +571,16 @@ class Trainer():
                 test_loss = self.loss_fn(outputs, batch.y) 
                 running_loss += test_loss.item()
 
+                # Check if mislabelled and if so, add to list
+                a = batch.y[batch.y != outputs.argmax(dim=1)]
+                b = outputs.argmax(dim=1)[batch.y != outputs.argmax(dim=1)]
+                c = torch.argwhere(batch.y != outputs.argmax(dim=1)).squeeze() + offset
+                mislabelled.append(torch.vstack([a, b, c]).T)
+
+                # Update offset
+                offset += batch.num_graphs
+
                 # Update trackers
                 self.test_metrics.update(outputs, batch.y)
 
-            return running_loss/len(self.test_loader)
+            return running_loss/len(self.test_loader), torch.cat(mislabelled).cpu().detach().numpy()

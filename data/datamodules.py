@@ -1,5 +1,5 @@
 from torch.utils.data import DataLoader as TorchDataLoader
-from typing import Dict, Type
+from typing import Dict
 from torch_geometric.loader import DataLoader as PyGDataLoader
 from .transforms import CuPIDTransform, SLICTransform, CuPIDPartition, SLICPartition
 from .graph_datasets import Graph_Dataset, Graph_Dataset_CSV

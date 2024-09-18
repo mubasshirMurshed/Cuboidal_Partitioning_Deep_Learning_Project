@@ -4,7 +4,7 @@ os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 # os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':16:8'
 import torch
 from torch import nn
-from data.datamodules import Graph_DataModule_CSV, Graph_DataModule
+from data.datamodules import Graph_DataModule_CSV
 from models.GAT_Modelv2 import GAT_Modelv2
 from data.data_classes import MyMNIST, MyCIFAR_10, MyMedMNIST, MyOmniglot
 from tools import Trainer
@@ -20,7 +20,7 @@ def main():
 
     # Define hyperparameters
     hparams = {
-        "max_epochs" : 100,
+        "max_epochs" : 10,
         "learning_rate" : 0.001,
         "batch_size" : 64,
         "scheduler_step": 20,
@@ -54,7 +54,7 @@ def main():
     hparams["scheduler"] = scheduler.__class__.__name__
 
     # Define flags
-    allow_log = False
+    allow_log = True
     save_every_n_epoch = 1
     save_top_k = 10
     resume_from_ckpt = None
