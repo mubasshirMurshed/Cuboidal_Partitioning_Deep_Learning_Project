@@ -93,13 +93,14 @@ def prettyprint(matrix: NDArray) -> None:
 
     # Print formatted table heading
     num_classes = matrix.shape[0]
+    print(" ", end="")
     for i in range(num_classes):
         print(f"{i:8d}", end="")
-    print("")
+    print("\n")
 
     # Print table body
     for i, row in enumerate(matrix):
-        print(f"{i}", end="")
+        print(f"{i:2d}", end="")
         categoryTotal = sum(row)
         for elem in row:
             print(f"{elem*100/categoryTotal:7.0f} ", end="")

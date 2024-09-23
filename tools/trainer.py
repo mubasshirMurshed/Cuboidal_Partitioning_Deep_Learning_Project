@@ -360,7 +360,7 @@ class Trainer():
         # Load model is a checkpoint is given, otherwise use the best model saved
         if model_ckpt is not None:
             self.model.load_state_dict(torch.load(model_ckpt))
-            self.log_dir = str(Path(model_ckpt).parent.parent)
+            self.log_dir = str(Path(model_ckpt).parent.parent) + "/"
         elif self.allow_log:
             if best_val_acc:
                 self.model.load_state_dict(torch.load(self.ckpt_dir + "best.pt"))
