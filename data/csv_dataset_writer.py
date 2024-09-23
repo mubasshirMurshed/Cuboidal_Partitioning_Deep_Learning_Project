@@ -27,7 +27,7 @@ class CSV_Dataset_Writer:
     If the first instance of a csv file is detected for a given split and partition, it will stop
     and assume the files already exist.
     """
-    def __init__(self, root: str, dataset: Type[SourceDataset], num_segments: int, mode: Partition, max_entries_per_file: int=10000, 
+    def __init__(self, root: str, dataset: SourceDataset, num_segments: int, mode: Partition, max_entries_per_file: int=10000, 
                  chunksize: int=200, overwrite: bool=False, num_workers: int=28) -> None:
         """
         Saves attributes, and creates necessary extra data based on mode selected and dataset. Creates links to the raw splits of 
@@ -52,8 +52,8 @@ class CSV_Dataset_Writer:
         """
         # Save attributes and path information
         self.num_segments = num_segments
-        self.dataset_name = dataset.name()
-        self.data_source = root + dataset.name()                                           # The path to dataset provided
+        self.dataset_name = dataset.name
+        self.data_source = root + dataset.name                                         # The path to dataset provided
         self.root = self.data_source + "/" + f"{self.num_segments}" + "/raw/"         # The dataset processed files will be saved here
         self.chunksize = chunksize
         self.max_entries_per_file = max_entries_per_file
@@ -70,12 +70,10 @@ class CSV_Dataset_Writer:
             raise ValueError(f"Supplied 'mode' argument not a registered partitioning strategy. Got {self.mode} but should be been a Partition Enum.")
 
         # Data Source with Partition transform
-        self.dataset = dataset(transform)
-
-        # Get splits
-        self.train_dataset = self.dataset.train_dataset()
-        self.val_dataset = self.dataset.validation_dataset()
-        self.test_dataset = self.dataset.test_dataset()
+        self.dataset = dataset
+        self.train_dataset = self.dataset.train_dataset(transform)
+        self.val_dataset = self.dataset.validation_dataset(transform)
+        self.test_dataset = self.dataset.test_dataset(transform)
 
     def create_csv_files(self, verbose: bool=False) -> None:
         """
@@ -174,8 +172,8 @@ Script to create the CSV files.
 """
 import time
 def main():
-    creator = CSV_Dataset_Writer("data/csv/", MyMedMNIST, 16, Partition.CuPID, 
-                                 chunksize=50, overwrite=False, num_workers=28)
+    creator = CSV_Dataset_Writer("data/csv/", MyMNIST(), 8, Partition.SLIC, 
+                                 chunksize=50, overwrite=True, num_workers=28)
     start = time.perf_counter()
     creator.create_csv_files(verbose=True)
     end = time.perf_counter()

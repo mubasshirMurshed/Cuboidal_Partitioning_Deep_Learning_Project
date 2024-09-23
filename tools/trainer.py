@@ -359,13 +359,13 @@ class Trainer():
         """
         # Load model is a checkpoint is given, otherwise use the best model saved
         if model_ckpt is not None:
-            self.model.load_state_dict(torch.load(model_ckpt))
+            self.model.load_state_dict(torch.load(model_ckpt, weights_only=True))
             self.log_dir = str(Path(model_ckpt).parent.parent) + "/"
         elif self.allow_log:
             if best_val_acc:
-                self.model.load_state_dict(torch.load(self.ckpt_dir + "best.pt"))
+                self.model.load_state_dict(torch.load(self.ckpt_dir + "best.pt", weights_only=True))
             else:
-                self.model.load_state_dict(torch.load(self.ckpt_dir + "bestLoss.pt"))
+                self.model.load_state_dict(torch.load(self.ckpt_dir + "bestLoss.pt", weights_only=True))
 
         # Move model over to device
         self.model = self.model.to(device=self.device)

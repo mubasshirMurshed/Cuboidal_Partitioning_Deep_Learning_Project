@@ -20,7 +20,7 @@ def main():
 
     # Define hyperparameters
     hparams = {
-        "max_epochs" : 10,
+        "max_epochs" : 100,
         "learning_rate" : 0.001,
         "batch_size" : 64,
         "scheduler_step": 20,
@@ -29,10 +29,10 @@ def main():
     }
 
     # Create data module
-    features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True}
+    features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True, "stdev":True}
     dm = Graph_DataModule_CSV(
         dataset=MyMNIST(),
-        num_segments=64,
+        num_segments=128,
         batch_size=hparams["batch_size"],
         mode=Partition.CuPID,
         num_workers=1,
@@ -54,7 +54,7 @@ def main():
     hparams["scheduler"] = scheduler.__class__.__name__
 
     # Define flags
-    allow_log = True
+    allow_log = False
     save_every_n_epoch = 1
     save_top_k = 10
     resume_from_ckpt = None

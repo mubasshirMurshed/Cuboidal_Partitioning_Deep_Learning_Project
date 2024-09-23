@@ -60,10 +60,10 @@ class Tester:
 
 if __name__ == "__main__":
     # Create data module
-    features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True}
+    features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True, "stdev":True}
     data_module = Graph_DataModule_CSV(
         dataset=MyMNIST(),
-        num_segments=64,
+        num_segments=128,
         batch_size=100,
         mode=Partition.CuPID,
         num_workers=1,
@@ -77,10 +77,10 @@ if __name__ == "__main__":
     loss_fn = nn.CrossEntropyLoss()
 
     # Model checkpoint to test
-    model_ckpt = r"saved\MNIST_CP_64_DataModule\XYCWH\GAT_Modelv2\Run_ID__2024-09-19__00-27-46\checkpoints\best.pt"
+    model_ckpt = r"saved\MNIST_CP_128_DataModule\XYCWHS\GAT_Modelv2\Run_ID__2024-09-23__13-44-38\checkpoints\best.pt"
 
     tester = Tester(data_module, model, loss_fn)
     tester.show_mislabelled(model_ckpt)
-    tester.compare_mislabelled(model_ckpt, 
-                               r"saved\MNIST_CP_64_DataModule\XYCWH\GAT_Modelv2\Run_ID__2024-09-19__01-03-48\checkpoints\best.pt",
-                               r"saved\MNIST_CP_64_DataModule\XYCWH\GAT_Modelv2\Run_ID__2024-09-19__01-09-24\checkpoints\best.pt")
+    # tester.compare_mislabelled(model_ckpt, 
+    #                            r"saved\MNIST_CP_64_DataModule\XYCWH\GAT_Modelv2\Run_ID__2024-09-19__01-03-48\checkpoints\best.pt",
+    #                            r"saved\MNIST_CP_64_DataModule\XYCWH\GAT_Modelv2\Run_ID__2024-09-19__01-09-24\checkpoints\best.pt")
