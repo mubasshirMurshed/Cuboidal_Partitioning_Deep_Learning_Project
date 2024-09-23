@@ -7,6 +7,7 @@ import numpy as np
 import os
 from data.data_classes import SourceDataset
 from enums import Split, Partition
+from typing import Dict
 
 
 class Graph_Dataset(Dataset):
@@ -378,3 +379,83 @@ class Graph_Dataset_CSV(InMemoryDataset):
         
         # Print separator lines
         print('-' * 20)
+
+
+class Ensemble_Graph_Dataset_CSV(Dataset):
+    def __init__(self, root: str, name: str, split: Split, modes: list[Partition], num_segments: list[int], features: Dict[str, bool]):
+        self.subdatasets = []
+        for i in range(len(modes)):
+            self.subdatasets.append(
+                Graph_Dataset_CSV(
+                    root="data/csv/",
+                    name=name,
+                    split=split,
+                    mode=modes[i],
+                    num_segments=num_segments[i],
+                    **features
+                )
+            )
+        self.ablation_code = self.subdatasets[0].ablation_code
+        super().__init__(root)
+
+
+    def len(self):
+        return len(self.subdatasets[0])
+
+
+    def get(self, idx):
+        results = []
+        for graph_dataset_csv_object in self.subdatasets:
+            results.append(graph_dataset_csv_object[idx])
+        label = results[0].y
+        return results, label.item()
+    
+
+class Multi_Graph_Dataset_CSV(Dataset):
+    def __init__(self, root: str, name: str, split: Split, modes: list[Partition], num_segments: list[int], features: Dict[str, bool]):
+        self.subdatasets = []
+        for i in range(len(modes)):
+            self.subdatasets.append(
+                Graph_Dataset_CSV(
+                    root="data/csv/",
+                    name=name,
+                    split=split,
+                    mode=modes[i],
+                    num_segments=num_segments[i],
+                    **features
+                )
+            )
+        self.ablation_code = self.subdatasets[0].ablation_code
+        super().__init__(root)
+
+
+    def len(self):
+        return len(self.subdatasets[0])
+
+
+    def get(self, idx):
+        results: list[Data] = []
+        for graph_dataset_csv_object in self.subdatasets:
+            results.append(graph_dataset_csv_object[idx])
+        label = results[0].y
+
+        # Concatenate all into 1 graph with edge numbering fixes
+        overall_graph = results[0]
+        for i in range(1, len(results)):
+            # Get current number of edges and nodes in overall graph
+            current_edges = overall_graph.edge_index.shape[1]
+            current_nodes = overall_graph.num_nodes
+
+            # Get next graph to concatenate
+            next_graph = results[i]
+
+            # Perform concatenation
+            overall_graph = overall_graph.concat(next_graph)
+
+            # Fix edges
+            overall_graph.edge_index[:, current_edges:] += current_nodes
+
+        # Fix label
+        overall_graph.y = label
+
+        return overall_graph

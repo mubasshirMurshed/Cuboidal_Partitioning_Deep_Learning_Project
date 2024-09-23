@@ -20,9 +20,16 @@ def dirManager(model: nn.Module, data_module: DataModule) -> Tuple[str, str, str
     # Get name of the model and data module class
     modelName = model._get_name()
     dataset_name = data_module.dataset.name.upper()
-    partition_mode = data_module.mode.value.upper()
-    num_segments = data_module.num_segments
-    dataModuleName = f"{dataset_name}_{partition_mode}_{num_segments}_DataModule"
+    if type(data_module.mode) == list:
+        dataModuleName = f"{dataset_name}_"
+        for i in range(len(data_module.mode)):
+            dataModuleName += f"{data_module.mode[i].value.upper()}_{data_module.num_segments[i]}_"
+        dataModuleName += "DataModule"
+    else:
+        partition_mode = data_module.mode.value.upper()
+        num_segments = data_module.num_segments
+        dataModuleName = f"{dataset_name}_{partition_mode}_{num_segments}_DataModule"
+
     ablationCode = getattr(data_module.graph_train_set, "ablation_code", None)
 
     # Get current time

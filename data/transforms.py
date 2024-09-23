@@ -4,7 +4,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 import numpy as np
 from clustering.CuPID import CuPID
 from clustering.SLIC import SLIC
-
+from scipy import ndimage
 
 class CuPIDPartition:
     """
@@ -12,10 +12,11 @@ class CuPIDPartition:
     partitioning has been done. Only suitable for 2D spatial data. Data in the shape of
     (H x W) will have an extra channel of 1 added on to make it (H x W x 1).
     """
-    def __init__(self, num_cuboids, b=0) -> None:
+    def __init__(self, num_cuboids, b=0, rotation=0) -> None:
         
         self.num_cuboids = num_cuboids
         self.b = b
+        self.rotation = rotation
 
     def __call__(self, sample):
         """
@@ -23,6 +24,10 @@ class CuPIDPartition:
         """
         # Preprocess image for partitioning by converting to numpy
         sample = np.asarray(sample)
+
+        # Rotate if necessary
+        if self.rotation != 0:
+            sample = ndimage.rotate(sample, self.rotation, mode="nearest")
 
         # If grayscale, then expand to make it three dimensions
         if len(sample.shape) != 3:
@@ -40,9 +45,10 @@ class CuPIDTransform:
     Only suitable for 2D spatial data. Data in the shape of (H x W) will have an extra
     channel of 1 added on to make it (H x W x 1).
     """
-    def __init__(self, num_cuboids, b=0) -> None:
+    def __init__(self, num_cuboids, b=0, rotation=0) -> None:
         self.num_cuboids = num_cuboids
         self.b = b
+        self.rotation = rotation
 
     def __call__(self, sample):
         """
@@ -50,6 +56,10 @@ class CuPIDTransform:
         """
         # Preprocess image for partitioning by converting to numpy
         sample = np.asarray(sample)
+
+        # Rotate if necessary
+        if self.rotation != 0:
+            sample = ndimage.rotate(sample, self.rotation, mode="nearest")
 
         # If grayscale, then expand to make it three dimensions
         if len(sample.shape) != 3:

@@ -64,6 +64,8 @@ class CSV_Dataset_Writer:
         self.mode = mode
         if self.mode is Partition.CuPID:
             transform = CuPIDPartition(self.num_segments)
+        elif self.mode is Partition.CuPID45:
+            transform = CuPIDPartition(self.num_segments, rotation=45)
         elif self.mode is Partition.SLIC:
             transform = SLICPartition(self.num_segments)
         else:
@@ -172,8 +174,8 @@ Script to create the CSV files.
 """
 import time
 def main():
-    creator = CSV_Dataset_Writer("data/csv/", MyMNIST(), 8, Partition.SLIC, 
-                                 chunksize=50, overwrite=True, num_workers=28)
+    creator = CSV_Dataset_Writer("data/csv/", MyMNIST(), 64, Partition.CuPID45, 
+                                 chunksize=50, overwrite=False, num_workers=28)
     start = time.perf_counter()
     creator.create_csv_files(verbose=True)
     end = time.perf_counter()

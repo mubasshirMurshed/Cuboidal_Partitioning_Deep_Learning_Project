@@ -191,10 +191,11 @@ class Trainer():
         print('-' * HYPHEN_COUNT)
 
         # Print out partitioning algorithm and segment number
-        if self.data_module.mode is Partition.CuPID:
-            print(f"Partition:\t\t{Partition.CuPID.name} - {self.data_module.num_segments}")
-        elif self.data_module.mode is Partition.SLIC:
-            print(f"Partition:\t\t{Partition.SLIC.name} - {self.data_module.num_segments}")
+        if type(self.data_module.mode) == list:
+            for i in range(len(self.data_module.mode)):
+                print(f"Partition {i + 1}:\t\t{self.data_module.mode[i].name} - {self.data_module.num_segments[i]}")
+        else:
+            print(f"Partition:\t\t{self.data_module.mode.name} - {self.data_module.num_segments}")
         print('-' * HYPHEN_COUNT)
 
         # Print ablation code
@@ -223,13 +224,13 @@ class Trainer():
             print('-' * HYPHEN_COUNT)
             print('-' * HYPHEN_COUNT)
         
-        # Determine training and validating functions   TODO: Make better when it comes to ensemble and CNN robustness
+        # Determine training and validating functions
         if not self.is_graph_model:
-            train_fn = self.train
-            validate_fn = self.validation
+            train_cycle_function = self.train_cycle_standard
+            validation_cycle_function = self.validation_cycle_standard
         else:
-            train_fn = self.train_G
-            validate_fn = self.validation_G
+            train_cycle_function = self.train_cycle_graph
+            validation_cycle_function = self.validation_cycle_graph
 
         # Initialise best model metric
         best_val_loss = float("inf")
@@ -240,10 +241,10 @@ class Trainer():
             # Loop over requested epochs
             for epoch in range(1, self.max_epochs + 1):
                 # Run training cycle
-                train_loss = train_fn()
+                train_loss = train_cycle_function()
 
                 # Run validation cycle
-                val_loss = validate_fn()
+                val_loss = validation_cycle_function()
 
                 # Update learning rate
                 if self.scheduler is not None:
@@ -310,7 +311,7 @@ class Trainer():
             print("Training halted using Ctrl+C interrupt")
         
         # Run a single validation run for confusion matrix
-        avg_val_loss = validate_fn(final_metrics=True)
+        avg_val_loss = validation_cycle_function(final_metrics=True)
 
         # Compute metrics
         val_metrics = self.val_metrics.compute()
@@ -372,10 +373,10 @@ class Trainer():
 
         # Run test cycle
         if not self.is_graph_model:
-            test_fn = self.test_
+            test_cycle_function = self.test_cycle_standard
         else:
-            test_fn = self.test_G
-        avg_test_loss, mislabelled_items = test_fn()
+            test_cycle_function = self.test_cycle_graph
+        avg_test_loss, mislabelled_items = test_cycle_function()
 
         # Save mislabelled items
         if self.allow_log:
@@ -402,21 +403,27 @@ class Trainer():
         
         return mislabelled_items
 
-    def train(self):
+
+    def train_cycle_standard(self):
         """
         Performs one training loop over the training data loader.
         """
         # Put the model in training mode
         self.model.train()
         running_loss = 0
-        for (i1, i2, i3, i4), labels in tqdm(self.training_loader, leave=False, disable=not self.verbose):
+        for inputs, labels in tqdm(self.training_loader, leave=False, disable=not self.verbose):
             # Get batch of images and labels
-            # inputs, labels = inputs.to(self.device), labels.to(self.device)
-            i1, i2, i3, i4, labels = i1.to(self.device), i2.to(self.device), i3.to(self.device), i4.to(self.device), labels.to(self.device)
-
-            # Forward                                         
+            if type(inputs) == list:
+                for i in range(len(inputs)):
+                    inputs[i] = inputs[i].to(self.device)
+                labels = labels.to(self.device)
+            else:
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
+                inputs = [inputs]
+            
+            # Forward
             self.optimizer.zero_grad()
-            outputs = self.model(i1, i2, i3, i4)
+            outputs = self.model(*inputs)
 
             # Backward
             loss = self.loss_fn(outputs, labels)
@@ -432,7 +439,7 @@ class Trainer():
         return running_loss/len(self.training_loader)
 
 
-    def validation(self, final_metrics: bool=False):
+    def validation_cycle_standard(self, final_metrics: bool=False):
         """
         Performs one validation loop over the validation data loader.
         """
@@ -440,13 +447,18 @@ class Trainer():
         running_loss = 0
         
         with torch.no_grad(): # save memory by not saving gradients which we don't need 
-            for (i1, i2, i3, i4), labels in tqdm(self.validation_loader, leave=False, disable=not self.verbose):
+            for inputs, labels in tqdm(self.validation_loader, leave=False, disable=not self.verbose):
                 # Get batch of images and labels
-                # images, labels = images.to(self.device), labels.to(self.device) # put the data on the GPU
-                i1, i2, i3, i4, labels = i1.to(self.device), i2.to(self.device), i3.to(self.device), i4.to(self.device), labels.to(self.device)
+                if type(inputs) == list:
+                    for i in range(len(inputs)):
+                        inputs[i] = inputs[i].to(self.device)
+                    labels = labels.to(self.device)
+                else:
+                    inputs, labels = inputs.to(self.device), labels.to(self.device)
+                    inputs = [inputs]
                 
                 # Forward
-                outputs = self.model(i1, i2, i3, i4)
+                outputs = self.model(*inputs)
 
                 # Calculate metrics
                 val_loss = self.loss_fn(outputs, labels)
@@ -460,33 +472,49 @@ class Trainer():
             return running_loss/len(self.validation_loader)
 
 
-    def test_(self):
+    def test_cycle_standard(self):
         """
         Performs one test epoch over the test data loader.
         """
         self.model.eval() # puts the model in evaluation mode
         running_loss = 0
+        mislabelled = []
+        offset = 0
         
         with torch.no_grad(): # save memory by not saving gradients which we don't need 
-            for (i1, i2, i3, i4), labels in tqdm(self.test_loader, leave=False, disable=not self.verbose):
+            for inputs, labels in tqdm(self.test_loader, leave=False, disable=not self.verbose):
                 # Get batch of images and labels
-                # images, labels = images.to(self.device), labels.to(self.device) # put the data on the GPU
-                i1, i2, i3, i4, labels = i1.to(self.device), i2.to(self.device), i3.to(self.device), i4.to(self.device), labels.to(self.device)
+                if type(inputs) == list:
+                    for i in range(len(inputs)):
+                        inputs[i] = inputs[i].to(self.device)
+                    labels = labels.to(self.device)
+                else:
+                    inputs, labels = inputs.to(self.device), labels.to(self.device)
+                    inputs = [inputs]
                 
                 # Forward
-                outputs = self.model(i1, i2, i3, i4)
+                outputs = self.model(*inputs)
 
                 # Calculate metrics
                 test_loss = self.loss_fn(outputs, labels)
                 running_loss += test_loss.item()
+
+                # Check if mislabelled and if so, add to list
+                a = labels[labels != outputs.argmax(dim=1)]
+                b = outputs.argmax(dim=1)[labels != outputs.argmax(dim=1)]
+                c = torch.argwhere(labels != outputs.argmax(dim=1)).squeeze() + offset
+                mislabelled.append(torch.vstack([a, b, c]).T)
+
+                # Update offset
+                offset += len(inputs[0])
         
                 # Update trackers
                 self.test_metrics.update(outputs, labels)
 
-            return running_loss/len(self.test_loader)
+            return running_loss/len(self.test_loader), torch.cat(mislabelled).cpu().detach().numpy()
 
 
-    def train_G(self) -> float:
+    def train_cycle_graph(self) -> float:
         """
         Performs one training loop over the training dataset for graph neural network training.
         """
@@ -517,7 +545,7 @@ class Trainer():
         return running_loss/len(self.training_loader)
 
 
-    def validation_G(self, final_metrics: bool=False) -> float:
+    def validation_cycle_graph(self, final_metrics: bool=False) -> float:
         """
         Performs one validation loop over the validation dataset for graph neural network training.
         """
@@ -547,7 +575,7 @@ class Trainer():
             return running_loss/len(self.validation_loader)
 
 
-    def test_G(self) -> float:
+    def test_cycle_graph(self) -> tuple[float, list]:
         """
         Tests the model's performance over the test dataset provided using graph neural networks.
         """

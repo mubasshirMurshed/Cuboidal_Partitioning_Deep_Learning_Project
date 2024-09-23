@@ -2,7 +2,7 @@ from torch.utils.data import DataLoader as TorchDataLoader
 from typing import Dict
 from torch_geometric.loader import DataLoader as PyGDataLoader
 from .transforms import CuPIDTransform, SLICTransform, CuPIDPartition, SLICPartition
-from .graph_datasets import Graph_Dataset, Graph_Dataset_CSV
+from .graph_datasets import *
 from .data_classes import SourceDataset
 from enums import Split, Partition
 import signal
@@ -106,7 +106,9 @@ class Graph_DataModule_CSV(DataModule):
 
         # Create references to the partitioned datasets
         if mode is Partition.CuPID:
-            transform = CuPIDPartition(num_segments) 
+            transform = CuPIDPartition(num_segments)
+        elif mode is Partition.CuPID45:
+            transform = CuPIDPartition(num_segments, rotation=45) 
         elif mode is Partition.SLIC:
             transform = SLICPartition(num_segments)
         else:
@@ -214,6 +216,9 @@ class Graph_DataModule(DataModule):
         if mode is Partition.CuPID:
             transform = CuPIDTransform(num_segments)
             partition = CuPIDPartition(num_segments)
+        elif mode is Partition.CuPID45:
+            transform = CuPIDTransform(num_segments, rotation=45)
+            partition = CuPIDPartition(num_segments, rotation=45)
         elif mode is Partition.SLIC:
             transform = SLICTransform(num_segments)
             partition = SLICPartition(num_segments)
@@ -240,6 +245,220 @@ class Graph_DataModule(DataModule):
             dataset=self.dataset.test_dataset(partition),
             num_segments=self.num_segments,
             **self.features
+        )
+
+        self.num_features = self.graph_train_set.num_features
+
+
+    def train_dataloader(self):
+        """
+        Returns the training dataloader.
+        """
+        return PyGDataLoader(
+            dataset=self.graph_train_set, batch_size=self.batch_size, 
+            shuffle=True, num_workers=self.num_workers, 
+            pin_memory=True, persistent_workers=True if self.num_workers > 0 else False,
+            worker_init_fn=worker_init
+        )
+
+
+    def val_dataloader(self):
+        """
+        Returns the validation dataloader.
+        """
+        return PyGDataLoader(
+            dataset=self.graph_validation_set, batch_size=self.batch_size,
+            shuffle=False, num_workers=self.num_workers, 
+            pin_memory=True, persistent_workers=True if self.num_workers > 0 else False,
+            worker_init_fn=worker_init
+        )
+    
+    
+    def test_dataloader(self):
+        """
+        Returns the testing dataloader.
+        """
+        return PyGDataLoader(
+            dataset=self.graph_test_set, batch_size=self.batch_size,
+            shuffle=False, num_workers=self.num_workers, 
+            pin_memory=True, persistent_workers=True if self.num_workers > 0 else False,
+            worker_init_fn=worker_init
+        )
+
+
+class Ensemble_Graph_DataModule_CSV(DataModule):
+    def __init__(self, dataset: SourceDataset, num_segments: list[int] | int, batch_size: int, mode: list[Partition] | Partition, 
+                 features: Dict[str, bool], num_workers: int=0):
+        """
+        Save attributes.
+
+        Args:
+        - dataset: SourceDataset
+            - The dataset to be referred to
+        - num_segments: int
+            - Number of segments to partition the data into
+        - batch_size: int
+            - How many data samples per batch to be loaded
+        - mode: str
+            - The mode of partitioning
+        - features: Dict[str, bool]
+            - A dictionary of features and whether they should be included or not in the
+              in-memory dataset.
+        """
+        # Save attributes
+        super().__init__(dataset, batch_size, num_workers)
+        
+        # Save the desired combinations
+        if type(num_segments) == int and type(mode) == Partition:
+            self.num_segments = [num_segments]
+            self.mode = [mode]
+        elif type(num_segments) == int:
+            self.num_segments = [num_segments]*len(mode)
+            self.mode = mode
+        elif type(mode) == Partition:
+            self.mode = [mode]*len(num_segments)
+            self.num_segments = num_segments
+        else:
+            self.num_segments: list[int] = num_segments
+            self.mode: list[Partition] = mode
+
+        # Save the features requested
+        self.features = features
+
+        # Create an Ensemble Dataset for each split
+        self.graph_train_set = Ensemble_Graph_Dataset_CSV( 
+            root="data/csv/",
+            name=self.dataset.name,
+            split=Split.TRAIN,
+            modes=self.mode,
+            num_segments=self.num_segments,
+            features=self.features
+        )
+
+        self.graph_validation_set = Ensemble_Graph_Dataset_CSV( 
+            root="data/csv/",
+            name=self.dataset.name,
+            split=Split.VALIDATION,
+            modes=self.mode,
+            num_segments=self.num_segments,
+            features=self.features
+        )
+        
+        self.graph_test_set = Ensemble_Graph_Dataset_CSV( 
+            root="data/csv/",
+            name=self.dataset.name,
+            split=Split.TEST,
+            modes=self.mode,
+            num_segments=self.num_segments,
+            features=self.features
+        )
+
+        self.num_features = [subdataset.num_features for subdataset in self.graph_train_set.subdatasets]
+        if len(self.num_features) == 1:
+            self.num_features = self.num_features[0]
+
+
+    def train_dataloader(self):
+        """
+        Returns the training dataloader.
+        """
+        return PyGDataLoader(
+            dataset=self.graph_train_set, batch_size=self.batch_size, 
+            shuffle=True, num_workers=self.num_workers, 
+            pin_memory=True, persistent_workers=True if self.num_workers > 0 else False,
+            worker_init_fn=worker_init
+        )
+
+
+    def val_dataloader(self):
+        """
+        Returns the validation dataloader.
+        """
+        return PyGDataLoader(
+            dataset=self.graph_validation_set, batch_size=self.batch_size,
+            shuffle=False, num_workers=self.num_workers, 
+            pin_memory=True, persistent_workers=True if self.num_workers > 0 else False,
+            worker_init_fn=worker_init
+        )
+    
+    
+    def test_dataloader(self):
+        """
+        Returns the testing dataloader.
+        """
+        return PyGDataLoader(
+            dataset=self.graph_test_set, batch_size=self.batch_size,
+            shuffle=False, num_workers=self.num_workers, 
+            pin_memory=True, persistent_workers=True if self.num_workers > 0 else False,
+            worker_init_fn=worker_init
+        )
+
+
+class Multi_Graph_DataModule_CSV(DataModule):
+    def __init__(self, dataset: SourceDataset, num_segments: list[int] | int, batch_size: int, mode: list[Partition] | Partition, 
+                features: Dict[str, bool], num_workers: int=0):
+        """
+        Save attributes.
+
+        Args:
+        - dataset: SourceDataset
+            - The dataset to be referred to
+        - num_segments: int
+            - Number of segments to partition the data into
+        - batch_size: int
+            - How many data samples per batch to be loaded
+        - mode: str
+            - The mode of partitioning
+        - features: Dict[str, bool]
+            - A dictionary of features and whether they should be included or not in the
+              in-memory dataset.
+        """
+        # Save attributes
+        super().__init__(dataset, batch_size, num_workers)
+        
+        # Save the desired combinations
+        if type(num_segments) == int and type(mode) == Partition:
+            self.num_segments = [num_segments]
+            self.mode = [mode]
+        elif type(num_segments) == int:
+            self.num_segments = [num_segments]*len(mode)
+            self.mode = mode
+        elif type(mode) == Partition:
+            self.mode = [mode]*len(num_segments)
+            self.num_segments = num_segments
+        else:
+            self.num_segments: list[int] = num_segments
+            self.mode: list[Partition] = mode
+
+        # Save the features requested
+        self.features = features
+
+        # Create an Ensemble Dataset for each split
+        self.graph_train_set = Multi_Graph_Dataset_CSV( 
+            root="data/csv/",
+            name=self.dataset.name,
+            split=Split.TRAIN,
+            modes=self.mode,
+            num_segments=self.num_segments,
+            features=self.features
+        )
+
+        self.graph_validation_set = Multi_Graph_Dataset_CSV( 
+            root="data/csv/",
+            name=self.dataset.name,
+            split=Split.VALIDATION,
+            modes=self.mode,
+            num_segments=self.num_segments,
+            features=self.features
+        )
+        
+        self.graph_test_set = Multi_Graph_Dataset_CSV( 
+            root="data/csv/",
+            name=self.dataset.name,
+            split=Split.TEST,
+            modes=self.mode,
+            num_segments=self.num_segments,
+            features=self.features
         )
 
         self.num_features = self.graph_train_set.num_features
