@@ -122,6 +122,7 @@ class Trainer():
         self.train_accuracy = MulticlassAccuracy(self.num_classes).to(self.device)
         self.val_accuracy = MulticlassAccuracy(self.num_classes).to(self.device)
         self.val_metrics = MetricCollection( {
+            "Top 1 Accuracy" : MulticlassAccuracy(self.num_classes),
             "Top 2 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=2),
             "Top 3 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=3),
             "Confusion Matrix" : MulticlassConfusionMatrix(self.num_classes)
@@ -218,7 +219,7 @@ class Trainer():
             num_trainable_parameters = count_trainable_parameters(self.model)
             num_untrainable_parameters = count_untrainable_parameters(self.model)
             total_paramaters = num_trainable_parameters + num_untrainable_parameters
-            estimated_size_kb = total_paramaters / 250        
+            estimated_size_kb = total_paramaters / 250
             summary(self.model)
             print(f"Estimated size of model\t{estimated_size_kb:6.2f} KB")
             print('-' * HYPHEN_COUNT)
@@ -316,15 +317,13 @@ class Trainer():
         # Compute metrics
         val_metrics = self.val_metrics.compute()
         self.val_metrics.reset()
-        val_acc = self.val_accuracy.compute()
-        self.val_accuracy.reset()
 
         # Dipslay final validation results
         print('-' * HYPHEN_COUNT)
         print("Validation Dataset Results:")
         print('-' * HYPHEN_COUNT)
         print(f"Loss: {avg_val_loss:.5}")
-        print(f"Top 1 Accuracy: {val_acc:.2%}")
+        print(f"Top 1 Accuracy: {val_metrics['Top 1 Accuracy']:.2%}")
         print(f"Top 2 Accuracy: {val_metrics['Top 2 Accuracy']:.2%}")
         print(f"Top 3 Accuracy: {val_metrics['Top 3 Accuracy']:.2%}")
         print('-' * HYPHEN_COUNT)
