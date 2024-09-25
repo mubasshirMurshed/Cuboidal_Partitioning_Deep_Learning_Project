@@ -4,7 +4,6 @@ import os
 from data.datamodules import DataModule
 from utils.logger import Logger
 from utils.utilities import dirManager, count_trainable_parameters, count_untrainable_parameters, getPythonFilePath, prettyprint
-from enums import Partition
 from pathlib import Path
 from typing import Dict, Any
 from shutil import copy
@@ -45,7 +44,8 @@ class Trainer():
             verbose: bool=True,
             log_to_csv: bool=True,
             allow_summary: bool=True, 
-            save_top_k: int=-1
+            save_top_k: int=-1,
+            track_accuracy: bool=True
         ) -> None:
         """
         Saves model, datasets/loaders and all flags passed. Sets up metrics to track as well.
@@ -107,6 +107,7 @@ class Trainer():
         self.log_to_csv = log_to_csv
         self.allow_summary = allow_summary
         self.save_top_k = save_top_k
+        self.track_accuracy = track_accuracy
 
         # Create and setup dataloaders
         self.data_module = data_module
@@ -119,20 +120,21 @@ class Trainer():
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         # Create and setup metric trackers
-        self.train_accuracy = MulticlassAccuracy(self.num_classes).to(self.device)
-        self.val_accuracy = MulticlassAccuracy(self.num_classes).to(self.device)
-        self.val_metrics = MetricCollection( {
-            "Top 1 Accuracy" : MulticlassAccuracy(self.num_classes),
-            "Top 2 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=2),
-            "Top 3 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=3),
-            "Confusion Matrix" : MulticlassConfusionMatrix(self.num_classes)
-        }, compute_groups=False).to(self.device)
-        self.test_metrics = MetricCollection( {
-            "Top 1 Accuracy" : MulticlassAccuracy(self.num_classes),
-            "Top 2 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=2),
-            "Top 3 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=3),
-            "Confusion Matrix" : MulticlassConfusionMatrix(self.num_classes)
-        }, compute_groups=False).to(self.device)
+        if self.track_accuracy:
+            self.train_accuracy = MulticlassAccuracy(self.num_classes).to(self.device)
+            self.val_accuracy = MulticlassAccuracy(self.num_classes).to(self.device)
+            self.val_metrics = MetricCollection( {
+                "Top 1 Accuracy" : MulticlassAccuracy(self.num_classes),
+                "Top 2 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=2),
+                "Top 3 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=3),
+                "Confusion Matrix" : MulticlassConfusionMatrix(self.num_classes)
+            }, compute_groups=False).to(self.device)
+            self.test_metrics = MetricCollection( {
+                "Top 1 Accuracy" : MulticlassAccuracy(self.num_classes),
+                "Top 2 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=2),
+                "Top 3 Accuracy" : MulticlassAccuracy(self.num_classes, top_k=3),
+                "Confusion Matrix" : MulticlassConfusionMatrix(self.num_classes)
+            }, compute_groups=False).to(self.device)
 
         # Set up saved checkpoint storage if save_top_k enabled
         if self.save_top_k:
@@ -241,6 +243,7 @@ class Trainer():
         try:
             # Loop over requested epochs
             for epoch in range(1, self.max_epochs + 1):
+                self.z = epoch
                 # Run training cycle
                 train_loss = train_cycle_function()
 
@@ -252,59 +255,77 @@ class Trainer():
                     self.scheduler.step()
 
                 # Print metrics to console
-                train_acc = self.train_accuracy.compute()
-                val_acc = self.val_accuracy.compute()
-                print("Epoch: {}/{}, Train Loss: {:.3f}, Train Acc: {:.2%}, Val Loss: {:.3f}, Val Accuracy: {:.2%}".format(
-                    epoch, self.max_epochs, train_loss, train_acc.item(), val_loss, val_acc.item())
-                )
-                print('-' * HYPHEN_COUNT)
+                if self.track_accuracy:
+                    train_acc = self.train_accuracy.compute()
+                    val_acc = self.val_accuracy.compute()
+                    print("Epoch: {}/{}, Train Loss: {:.3f}, Train Acc: {:.2%}, Val Loss: {:.3f}, Val Accuracy: {:.2%}".format(
+                        epoch, self.max_epochs, train_loss, train_acc.item(), val_loss, val_acc.item())
+                    )
 
-                # Reset metrics
-                self.train_accuracy.reset()
-                self.val_accuracy.reset()
+                    # Reset metrics
+                    self.train_accuracy.reset()
+                    self.val_accuracy.reset()
+                else:
+                    print("Epoch: {}/{}, Train Loss: {:.3f}, Val Loss: {:.3f}".format(
+                        epoch, self.max_epochs, train_loss, val_loss)
+                    )
+                print('-' * HYPHEN_COUNT)
 
                 if self.allow_log:
                     # Tensorboard logging
                     self.logger.add_scalar("train_loss", train_loss, epoch)
-                    self.logger.add_scalar("train_acc", train_acc, epoch)
                     self.logger.add_scalar("val_loss", val_loss, epoch)
-                    self.logger.add_scalar("val_acc", val_acc, epoch)
+                    if self.track_accuracy:
+                        self.logger.add_scalar("train_acc", train_acc, epoch)
+                        self.logger.add_scalar("val_acc", val_acc, epoch)
 
                     # Save best checkpoint
                     if val_loss < best_val_loss:
                         torch.save(self.model.state_dict(), self.ckpt_dir + "bestLoss.pt")
                         best_val_loss = val_loss
-                    if val_acc.item() > best_val_accuracy:
+                    if self.track_accuracy and val_acc.item() > best_val_accuracy:
                         torch.save(self.model.state_dict(), self.ckpt_dir + "best.pt")
                         best_val_accuracy = val_acc.item()
 
                     # Saving checkpoints
                     if self.save_every_n_epoch != 0 and self.save_top_k != 0 and ((epoch) % self.save_every_n_epoch == 0):
-                        filename = f"epoch={epoch}-val_loss={val_loss:.4f}-val_acc={val_acc:.4f}.pt"
+                        if self.track_accuracy:
+                            filename = f"epoch={epoch}-val_loss={val_loss:.4f}-val_acc={val_acc:.4f}.pt"
+                        else:
+                            filename = f"epoch={epoch}-val_loss={val_loss:.4f}.pt"
                         new_ckpt_filepath = self.ckpt_dir + filename
                         if self.save_top_k > 0:
+                            # Determine the metric
+                            if self.track_accuracy:
+                                val_metric = val_acc
+                            else:
+                                val_metric = -val_loss
+                            
                             if len(self.minheap) < self.save_top_k:
                                 # K checkpoints not saved yet, keep saving
                                 torch.save(self.model.state_dict(), new_ckpt_filepath)
-                                heapq.heappush(self.minheap, (val_acc, new_ckpt_filepath))
+                                heapq.heappush(self.minheap, (val_metric, new_ckpt_filepath))
                             else:
                                 # K checkpoints exist, pop worst checkpoint
-                                kth_best_val_acc, old_ckpt_filepath = heapq.heappop(self.minheap)
+                                kth_best_val_metric, old_ckpt_filepath = heapq.heappop(self.minheap)
 
                                 # Compare with current val accuracy tracked
-                                if val_acc > kth_best_val_acc:
+                                if val_metric > kth_best_val_metric:
                                     # Remove the old one and save the current model state
                                     os.remove(old_ckpt_filepath)
                                     torch.save(self.model.state_dict(), new_ckpt_filepath)
-                                    heapq.heappush(self.minheap, (val_acc, new_ckpt_filepath))
+                                    heapq.heappush(self.minheap, (val_metric, new_ckpt_filepath))
                                 else:
-                                    heapq.heappush(self.minheap, (kth_best_val_acc, old_ckpt_filepath))
+                                    heapq.heappush(self.minheap, (kth_best_val_metric, old_ckpt_filepath))
                         else:
                             torch.save(self.model.state_dict(), new_ckpt_filepath)
                         
                     # Keep track in csv log
                     if self.log_to_csv:
-                        writer.writerow([epoch, train_loss, train_acc.item(), val_loss, val_acc.item()])
+                        if self.track_accuracy:
+                            writer.writerow([epoch, train_loss, train_acc.item(), val_loss, val_acc.item()])
+                        else:
+                            writer.writerow([epoch, train_loss, val_loss])
 
             print("Finished Training")
 
@@ -314,24 +335,26 @@ class Trainer():
         # Run a single validation run for confusion matrix
         avg_val_loss = validation_cycle_function(final_metrics=True)
 
-        # Compute metrics
-        val_metrics = self.val_metrics.compute()
-        self.val_metrics.reset()
-
         # Dipslay final validation results
         print('-' * HYPHEN_COUNT)
         print("Validation Dataset Results:")
         print('-' * HYPHEN_COUNT)
         print(f"Loss: {avg_val_loss:.5}")
-        print(f"Top 1 Accuracy: {val_metrics['Top 1 Accuracy']:.2%}")
-        print(f"Top 2 Accuracy: {val_metrics['Top 2 Accuracy']:.2%}")
-        print(f"Top 3 Accuracy: {val_metrics['Top 3 Accuracy']:.2%}")
-        print('-' * HYPHEN_COUNT)
 
-        # Print confusion matrix
-        if self.print_cm:
-            prettyprint(val_metrics["Confusion Matrix"].to("cpu").numpy())
+        # Compute metrics
+        if self.track_accuracy:
+            val_metrics = self.val_metrics.compute()
+            self.val_metrics.reset()
+            print(f"Top 1 Accuracy: {val_metrics['Top 1 Accuracy']:.2%}")
+            print(f"Top 2 Accuracy: {val_metrics['Top 2 Accuracy']:.2%}")
+            print(f"Top 3 Accuracy: {val_metrics['Top 3 Accuracy']:.2%}")
             print('-' * HYPHEN_COUNT)
+
+            # Print confusion matrix
+            if self.print_cm:
+                prettyprint(val_metrics["Confusion Matrix"].to("cpu").numpy())
+
+        print('-' * HYPHEN_COUNT)
 
         if self.allow_log:
             # Save current model
@@ -362,7 +385,7 @@ class Trainer():
             self.model.load_state_dict(torch.load(model_ckpt, weights_only=True))
             self.log_dir = str(Path(model_ckpt).parent.parent) + "/"
         elif self.allow_log:
-            if best_val_acc:
+            if self.track_accuracy and best_val_acc:
                 self.model.load_state_dict(torch.load(self.ckpt_dir + "best.pt", weights_only=True))
             else:
                 self.model.load_state_dict(torch.load(self.ckpt_dir + "bestLoss.pt", weights_only=True))
@@ -377,28 +400,30 @@ class Trainer():
             test_cycle_function = self.test_cycle_graph
         avg_test_loss, mislabelled_items = test_cycle_function()
 
-        # Save mislabelled items
-        if self.allow_log:
-            np.save(self.log_dir + "mislabelled.npy", mislabelled_items)
+        if self.track_accuracy:
+            # Save mislabelled items
+            if self.allow_log:
+                np.save(self.log_dir + "mislabelled.npy", mislabelled_items)
 
-        # Compute metrics
-        test_metric_results = self.test_metrics.compute()
-        self.test_metrics.reset()
+            # Compute metrics
+            test_metric_results = self.test_metrics.compute()
+            self.test_metrics.reset()
 
         # Display test results
         print('-' * HYPHEN_COUNT)
         print("Test Dataset Results:")
         print('-' * HYPHEN_COUNT)
         print(f"Loss: {avg_test_loss:.5}")
-        print(f"Top 1 Accuracy: {test_metric_results['Top 1 Accuracy']:.2%}")
-        print(f"Top 2 Accuracy: {test_metric_results['Top 2 Accuracy']:.2%}")
-        print(f"Top 3 Accuracy: {test_metric_results['Top 3 Accuracy']:.2%}")
-        print('-' * HYPHEN_COUNT)
-
-        # Print confusion matrix
-        if self.print_cm:
-            prettyprint(test_metric_results["Confusion Matrix"].to("cpu").numpy())
+        if self.track_accuracy:
+            print(f"Top 1 Accuracy: {test_metric_results['Top 1 Accuracy']:.2%}")
+            print(f"Top 2 Accuracy: {test_metric_results['Top 2 Accuracy']:.2%}")
+            print(f"Top 3 Accuracy: {test_metric_results['Top 3 Accuracy']:.2%}")
             print('-' * HYPHEN_COUNT)
+
+            # Print confusion matrix
+            if self.print_cm:
+                prettyprint(test_metric_results["Confusion Matrix"].to("cpu").numpy())
+        print('-' * HYPHEN_COUNT)
         
         return mislabelled_items
 
@@ -536,7 +561,8 @@ class Trainer():
             loss.backward()
 
             # Update accuracies
-            self.train_accuracy.update(outputs, batch.y)
+            if self.track_accuracy:
+                self.train_accuracy.update(outputs, batch.y)
 
             # Update weights
             self.optimizer.step()
@@ -567,9 +593,10 @@ class Trainer():
                 running_loss += val_loss.item()
 
                 # Update trackers
-                self.val_accuracy.update(outputs, batch.y)
-                if final_metrics:
-                    self.val_metrics.update(outputs, batch.y)
+                if self.track_accuracy:
+                    self.val_accuracy.update(outputs, batch.y)
+                    if final_metrics:
+                        self.val_metrics.update(outputs, batch.y)
 
             return running_loss/len(self.validation_loader)
 
@@ -598,16 +625,19 @@ class Trainer():
                 test_loss = self.loss_fn(outputs, batch.y) 
                 running_loss += test_loss.item()
 
-                # Check if mislabelled and if so, add to list
-                a = batch.y[batch.y != outputs.argmax(dim=1)]
-                b = outputs.argmax(dim=1)[batch.y != outputs.argmax(dim=1)]
-                c = torch.argwhere(batch.y != outputs.argmax(dim=1)).squeeze() + offset
-                mislabelled.append(torch.vstack([a, b, c]).T)
+                if self.track_accuracy:
+                    # Check if mislabelled and if so, add to list
+                    a = batch.y[batch.y != outputs.argmax(dim=1)]
+                    b = outputs.argmax(dim=1)[batch.y != outputs.argmax(dim=1)]
+                    c = torch.argwhere(batch.y != outputs.argmax(dim=1)).squeeze() + offset
+                    mislabelled.append(torch.vstack([a, b, c]).T)
 
-                # Update offset
-                offset += batch.num_graphs
+                    # Update offset
+                    offset += batch.num_graphs
 
-                # Update trackers
-                self.test_metrics.update(outputs, batch.y)
-
-            return running_loss/len(self.test_loader), torch.cat(mislabelled).cpu().detach().numpy()
+                    # Update trackers
+                    self.test_metrics.update(outputs, batch.y)
+            if self.track_accuracy:
+                return running_loss/len(self.test_loader), torch.cat(mislabelled).cpu().detach().numpy()
+            else:
+                return running_loss/len(self.test_loader), None

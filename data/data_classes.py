@@ -1,11 +1,13 @@
 from torch.utils.data import Subset, Dataset
-from torchvision.datasets import MNIST, CIFAR10, DatasetFolder
+from torchvision.datasets import MNIST, CIFAR10, DatasetFolder, KMNIST
 from torchvision import transforms
 from torchvision.datasets.folder import default_loader
 from medmnist import OrganAMNIST
 import os
 import numpy as np
 from typing import Callable, Dict
+from PIL import Image
+from skimage import transform
 
 
 # Root directories to dataset sources
@@ -13,6 +15,8 @@ MNIST_ROOT = "data/source/MNIST/"
 CIFAR10_ROOT = "data/source/CIFAR10/"
 MEDMNIST_ROOT = "data/source/MedMNIST/"
 OMNIGLOT_ROOT = "data/source/Omniglot/"
+KMNIST_ROOT = "data/source/KMNIST/"
+HELEN_ROOT = "data/source/HELEN/"
 
 
 class SourceDataset():
@@ -57,7 +61,6 @@ class MyMNIST(SourceDataset):
         ds = MNIST(root=MNIST_ROOT, train=True, transform=transform)
         train_idx = np.load("data/split_indices/MNIST_Train_Idx.npy")
         train_dataset = Subset(ds, train_idx)
-        train_dataset.data_shape = self.shape
         return train_dataset
 
     def validation_dataset(self, transform=None) -> Dataset:
@@ -66,14 +69,12 @@ class MyMNIST(SourceDataset):
         ds = MNIST(root=MNIST_ROOT, train=True, transform=transform)
         val_idx = np.load("data/split_indices/MNIST_Validation_Idx.npy")
         validation_datset = Subset(ds, val_idx)
-        validation_datset.data_shape = self.shape
         return validation_datset
 
     def test_dataset(self, transform=None) -> Dataset:
         if transform is None:
             transform = self.transform
         test_dataset = MNIST(root=MNIST_ROOT, train=False, transform=transform)
-        test_dataset.data_shape = self.shape
         return test_dataset
 
 
@@ -98,7 +99,6 @@ class MyCIFAR_10(SourceDataset):
         dataset = CIFAR10(root=CIFAR10_ROOT, train=True, transform=transform)
         train_idx = np.load("data/split_indices/CIFAR_Train_Idx.npy")
         train_dataset = Subset(dataset, train_idx)
-        train_dataset.data_shape = self.shape
         return train_dataset
 
     def validation_dataset(self, transform=None) -> Dataset:
@@ -107,14 +107,12 @@ class MyCIFAR_10(SourceDataset):
         dataset = CIFAR10(root=CIFAR10_ROOT, train=True, transform=transform)
         val_idx = np.load("data/split_indices/CIFAR_Validation_Idx.npy")
         validation_datset = Subset(dataset, val_idx)
-        validation_datset.data_shape = self.shape
         return validation_datset
 
     def test_dataset(self, transform=None) -> Dataset:
         if transform is None:
             transform = self.transform
         test_dataset = CIFAR10(root=CIFAR10_ROOT, train=False, transform=transform)
-        test_dataset.data_shape = self.shape
         return test_dataset
 
 
@@ -151,21 +149,18 @@ class MyMedMNIST(SourceDataset):
         if transform is None:
             transform = self.transform
         train_dataset = OrganAMNIST(root=MEDMNIST_ROOT, split="train", transform=transform, size=self.size)
-        train_dataset.data_shape = self.shape
         return train_dataset
 
     def validation_dataset(self, transform=None) -> Dataset:
         if transform is None:
             transform = self.transform
         validation_datset = OrganAMNIST(root=MEDMNIST_ROOT, split="val", transform=transform, size=self.size)
-        validation_datset.data_shape = self.shape
         return validation_datset
 
     def test_dataset(self, transform=None) -> Dataset:
         if transform is None:
             transform = self.transform
         test_dataset = OrganAMNIST(root=MEDMNIST_ROOT, split="test", transform=transform, size=self.size)
-        test_dataset.data_shape = self.shape
         return test_dataset
 
 
@@ -235,19 +230,160 @@ class MyOmniglot(SourceDataset):
         if transform is None:
             transform = self.transform
         train_dataset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="train", transform=transform)
-        train_dataset.data_shape = self.shape
         return train_dataset
 
     def validation_dataset(self, transform=None) -> Dataset:
         if transform is None:
             transform = self.transform
         validation_datset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="val", transform=transform)
-        validation_datset.data_shape = self.shape
         return validation_datset
 
     def test_dataset(self, transform=None) -> Dataset:
         if transform is None:
             transform = self.transform
         test_dataset = OmniglotDatasetFolder(root=OMNIGLOT_ROOT, split="test", transform=transform)
-        test_dataset.data_shape = self.shape
         return test_dataset
+
+
+class MyKMNIST(SourceDataset):
+    """
+    Wrapper of the KMNIST dataset.
+    """
+    def __init__(self, transform: Callable | None=None) -> None:
+        """
+        Sets up the training, validation, and testing dataset of MNIST.
+        """
+        super().__init__(name="KMNIST", shape=(28, 28, 1), num_classes=10)
+        self.transform = transform
+
+    def idx_to_class(self, i: int) -> str:
+        classes = ['o', 'ki', 'su', 'tsu', 'na', 'ha', 'ma', 'ya', 're', 'wo']
+        return classes[i]
+        
+    def train_dataset(self, transform=None) -> Dataset:
+        if transform is None:
+            transform = self.transform
+        ds = KMNIST(root=KMNIST_ROOT, train=True, transform=transform)
+        train_idx = np.load("data/split_indices/KMNIST_Train_Idx.npy")
+        train_dataset = Subset(ds, train_idx)
+        return train_dataset
+
+    def validation_dataset(self, transform=None) -> Dataset:
+        if transform is None:
+            transform = self.transform
+        ds = KMNIST(root=KMNIST_ROOT, train=True, transform=transform)
+        val_idx = np.load("data/split_indices/KMNIST_Validation_Idx.npy")
+        validation_datset = Subset(ds, val_idx)
+        return validation_datset
+
+    def test_dataset(self, transform=None) -> Dataset:
+        if transform is None:
+            transform = self.transform
+        test_dataset = KMNIST(root=KMNIST_ROOT, train=False, transform=transform)
+        return test_dataset
+
+
+class HELEN(Dataset):
+    def __init__(self, root: str, train: bool, transform=None) -> None:
+        super().__init__()
+        self.root = root + "train/" if train else root + "test/"
+        self.transform = transform
+        data = os.listdir(self.root)
+        self.image_filenames = list(filter(lambda filename: filename[-4:] == ".jpg", data))
+        self.landmark_filenames = list(filter(lambda filename: filename[-4:] == ".pts", data))
+        self.rescale = Rescale((640, 640))
+
+    def __len__(self) -> int:
+        return len(self.image_filenames)
+
+    def __getitem__(self, idx: int):
+        # Get the filepaths
+        image_filepath = self.root + self.image_filenames[idx]
+        landmark_filepath = self.root + self.landmark_filenames[idx]
+
+        # Load the image
+        img = Image.open(image_filepath)
+
+        # Read the landmark data
+        landmarks = self.read_landmark_file(landmark_filepath)
+
+        # Rescale image and landmarks
+        img, landmarks = self.rescale(img, landmarks)
+
+        # Apply any transforms
+        if self.transform is not None:
+            img = self.transform(img)
+
+        return img, landmarks
+
+
+    def read_landmark_file(self, filepath):
+        with open(filepath) as f:
+            # Read the .pts file
+            contents = f.readlines()
+
+            # Only get the numbers
+            contents = contents[3:71]
+
+            # Put all the coordinates together
+            contents = "".join(contents).replace("\n", " ")
+            contents = contents[:-1]
+            landmark_data = [float(val) for val in contents.split()]
+
+            return landmark_data
+
+
+class MyHELEN(SourceDataset):
+    def __init__(self, transform: Callable | None=None) -> None:
+        """
+        Sets up the training, validation, and testing dataset of Omniglot.
+        """
+        super().__init__(name="HELEN", shape=(640, 640, 3), num_classes=68*2)
+        self.transform = transform
+
+    def train_dataset(self, transform=None) -> Dataset:
+        if transform is None:
+            transform = self.transform
+        dataset = HELEN(root=HELEN_ROOT, train=True, transform=transform)
+        train_idx = np.load("data/split_indices/HELEN_Train_Idx.npy")
+        train_dataset = Subset(dataset, train_idx)
+        return train_dataset
+
+    def validation_dataset(self, transform=None) -> Dataset:
+        if transform is None:
+            transform = self.transform
+        dataset = HELEN(root=HELEN_ROOT, train=True, transform=transform)
+        validation_idx = np.load("data/split_indices/HELEN_Validation_Idx.npy")
+        validation_dataset = Subset(dataset, validation_idx)
+        return validation_dataset
+
+    def test_dataset(self, transform=None) -> Dataset:
+        if transform is None:
+            transform = self.transform
+        test_dataset = HELEN(root=HELEN_ROOT, train=False, transform=transform)
+        return test_dataset
+
+
+class Rescale():
+    """
+    Rescale the image in a sample to a given size.
+    """
+
+    def __init__(self, output_size):
+        self.output_size = output_size
+
+    def __call__(self, image, landmarks):
+        # Transform img and landmarks into usable numpy array
+        image = np.asarray(image)
+        landmarks = np.array(landmarks, dtype=np.float64).reshape((-1, 2))
+
+        h, w = image.shape[:2]
+        new_h, new_w = self.output_size
+
+        img = transform.resize(image, (new_h, new_w), anti_aliasing=new_h < h and new_w < w, clip=True, preserve_range=True).astype(np.uint8)
+
+        # h and w are swapped for landmarks because for images,
+        # x and y axes are axis 1 and 0 respectively
+        landmarks = landmarks * np.array([new_w / w, new_h / h], dtype=np.float64)
+
+        return img, landmarks.reshape((-1)).tolist()

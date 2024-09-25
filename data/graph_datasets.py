@@ -8,12 +8,13 @@ import os
 from data.data_classes import SourceDataset
 from enums import Split, Partition
 from typing import Dict
+import json
 
 
 class Graph_Dataset(Dataset):
     def __init__(self, dataset: SourceDataset, num_segments: int, x_center: bool=False,
                        y_center: bool=False, colour: bool=False, width: bool=False, height: bool=False, 
-                       num_pixels: bool=False, angle: bool=False, st_dev: bool=False) -> None:
+                       num_pixels: bool=False, angle: bool=False, stdev: bool=False) -> None:
         # Set up attributes
         super().__init__()
         self.dataset = dataset
@@ -25,7 +26,7 @@ class Graph_Dataset(Dataset):
         self.angle = angle
         self.width = width
         self.height = height
-        self.stdev = st_dev
+        self.stdev = stdev
 
         # Create ablation code string
         self.ablation_code = ""
@@ -115,7 +116,10 @@ class Graph_Dataset(Dataset):
         edge_index = torch.tensor(edge_index).reshape([2, num_edges])
         
         # Get label
-        lbl = torch.tensor(int(label))
+        if type(label) == list:
+            lbl = torch.tensor(label)
+        else:
+            lbl = torch.tensor(int(label))
 
         # Save tensors in Data object and return
         return Data(x=x, y=lbl, edge_index=edge_index)
@@ -363,7 +367,10 @@ class Graph_Dataset_CSV(InMemoryDataset):
                 edge_index = torch.tensor(edge_index).reshape([2, num_edges])
                 
                 # Get label
-                lbl = torch.tensor(int(img_data[1]))
+                if type(img_data[1]) == str:
+                    lbl = torch.tensor([json.loads(img_data[1])])
+                else:
+                    lbl = torch.tensor(int(img_data[1]))
 
                 # Save tensors in Data object and return    # TODO: Add pos attribute to allow PyG Vision Transforms
                 data_list[i] = Data(x=x, y=lbl, edge_index=edge_index)

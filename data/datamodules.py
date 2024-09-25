@@ -106,11 +106,11 @@ class Graph_DataModule_CSV(DataModule):
 
         # Create references to the partitioned datasets
         if mode is Partition.CuPID:
-            transform = CuPIDPartition(num_segments)
+            transform = CuPIDTransform(num_segments)
         elif mode is Partition.CuPID45:
-            transform = CuPIDPartition(num_segments, rotation=45) 
+            transform = CuPIDTransform(num_segments, rotation=45) 
         elif mode is Partition.SLIC:
-            transform = SLICPartition(num_segments)
+            transform = SLICTransform(num_segments)
         else:
             raise ValueError(f"Supplied 'mode' argument not a registered partitioning strategy. Got {self.mode} but should be been a Partition Enum.")
         self.partition_train_set = self.dataset.train_dataset(transform)

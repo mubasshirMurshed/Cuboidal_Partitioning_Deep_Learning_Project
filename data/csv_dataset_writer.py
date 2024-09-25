@@ -1,6 +1,6 @@
 import os
 from transforms import CuPIDPartition, SLICPartition
-from data_classes import SourceDataset, MyMNIST, MyCIFAR_10, MyMedMNIST, MyOmniglot
+from data_classes import *
 import csv
 import math
 from tqdm import tqdm
@@ -158,7 +158,8 @@ def convert_to_array_of_data(arg: Tuple[int, Dataset]):
 
     # If label is not an integer (inside an array) extract it
     if type(label) != int:
-        label = np.array(label).item()
+        if len(label) == 1:
+            label = np.array(label).item()
 
     # Get csv data
     new_row_entry = partitioned_object.transform_to_csv_data()
@@ -174,8 +175,8 @@ Script to create the CSV files.
 """
 import time
 def main():
-    creator = CSV_Dataset_Writer("data/csv/", MyMNIST(), 64, Partition.CuPID45, 
-                                 chunksize=50, overwrite=False, num_workers=28)
+    creator = CSV_Dataset_Writer("data/csv/", MyHELEN(), 256, Partition.CuPID, 
+                                 chunksize=5, overwrite=False, num_workers=20)
     start = time.perf_counter()
     creator.create_csv_files(verbose=True)
     end = time.perf_counter()

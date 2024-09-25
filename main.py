@@ -8,8 +8,8 @@ from data.datamodules import *
 from models.GAT_Modelv4 import GAT_Modelv4
 from models.GAT_Modelv5 import GAT_Modelv5
 from models.Ensemble_Model import Ensemble_Model
-from data.data_classes import MyMNIST, MyCIFAR_10, MyMedMNIST, MyOmniglot
-from tools import Trainer
+from data.data_classes import *
+from tools.trainer import Trainer
 import torch_geometric
 from enums import Partition
 # torch.backends.cudnn.deterministic=True
@@ -33,8 +33,8 @@ def main():
     # Create data module
     features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True, "stdev":True}
     dm = Graph_DataModule_CSV(
-        dataset=MyCIFAR_10(),
-        num_segments=128,
+        dataset=MyHELEN(),
+        num_segments=256,
         batch_size=hparams["batch_size"],
         mode=Partition.CuPID,
         num_workers=1,
@@ -44,10 +44,12 @@ def main():
     # Instantiate model
     model = GAT_Modelv5(num_features=dm.num_features, num_classes=dm.num_classes)
 
-    # Initialise loss function, optimizer and LR scheduler
-    loss_fn = nn.CrossEntropyLoss()
+    # Initialise loss function
+    # loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.MSELoss()
+
+    # Initialise optimizer and LR scheduler
     optimizer = torch.optim.AdamW(params=model.parameters(), lr=hparams["learning_rate"], weight_decay=hparams["weight_decay"])
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", 0.5, 5)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, hparams["scheduler_step"], hparams["scheduler_decay"])
 
     # Add options to hyperparameters
@@ -61,11 +63,13 @@ def main():
     save_top_k = 10
     resume_from_ckpt = None
     is_single_graph_model = True
+    track_accuracy = False
 
     # Create trainer
     trainer = Trainer(model=model, data_module=dm, loss_fn=loss_fn, optimizer=optimizer, scheduler=scheduler, hparams=hparams,
                     save_every_n_epoch=save_every_n_epoch, allow_log=allow_log, is_graph_model=is_single_graph_model,
-                    resume_from_ckpt=resume_from_ckpt, max_epochs=hparams["max_epochs"], save_top_k=save_top_k)
+                    resume_from_ckpt=resume_from_ckpt, max_epochs=hparams["max_epochs"], save_top_k=save_top_k,
+                    track_accuracy=track_accuracy)
     
     # Train model
     trainer.fit()
