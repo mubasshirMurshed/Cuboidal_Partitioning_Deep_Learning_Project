@@ -8,6 +8,7 @@ from data.datamodules import *
 from models.GAT_Modelv4 import GAT_Modelv4
 from models.GAT_Modelv5 import GAT_Modelv5
 from models.Ensemble_Model import Ensemble_Model
+from models.GAT_Modelv5_Regression import GAT_Modelv5_Regression
 from data.data_classes import *
 from tools.trainer import Trainer
 import torch_geometric
@@ -25,16 +26,24 @@ def main():
         "max_epochs" : 100,
         "learning_rate" : 0.001,
         "batch_size" : 64,
-        "scheduler_step": 20,
-        "scheduler_decay" : 0.8,
-        "weight_decay" : 0.01
+        "scheduler_step": 15,
+        "scheduler_decay" : 0.95,
+        "weight_decay" : 0.001
     }
+    # hparams = {
+    #     "max_epochs" : 200,
+    #     "learning_rate" : 0.001,
+    #     "batch_size" : 64,
+    #     "scheduler_step": 15,
+    #     "scheduler_decay" : 0.95,
+    #     "weight_decay" : 0.001
+    # }
 
     # Create data module
     features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True, "stdev":True}
     dm = Graph_DataModule_CSV(
-        dataset=MyHELEN(),
-        num_segments=256,
+        dataset=MyMNIST(),
+        num_segments=784,
         batch_size=hparams["batch_size"],
         mode=Partition.CuPID,
         num_workers=1,
@@ -43,10 +52,11 @@ def main():
 
     # Instantiate model
     model = GAT_Modelv5(num_features=dm.num_features, num_classes=dm.num_classes)
+    # model = GAT_Modelv5_Regression(num_features=dm.num_features, num_classes=dm.num_classes)
 
     # Initialise loss function
-    # loss_fn = nn.CrossEntropyLoss()
-    loss_fn = nn.MSELoss()
+    loss_fn = nn.CrossEntropyLoss()
+    # loss_fn = nn.MSELoss()
 
     # Initialise optimizer and LR scheduler
     optimizer = torch.optim.AdamW(params=model.parameters(), lr=hparams["learning_rate"], weight_decay=hparams["weight_decay"])
@@ -63,7 +73,7 @@ def main():
     save_top_k = 10
     resume_from_ckpt = None
     is_single_graph_model = True
-    track_accuracy = False
+    track_accuracy = True
 
     # Create trainer
     trainer = Trainer(model=model, data_module=dm, loss_fn=loss_fn, optimizer=optimizer, scheduler=scheduler, hparams=hparams,

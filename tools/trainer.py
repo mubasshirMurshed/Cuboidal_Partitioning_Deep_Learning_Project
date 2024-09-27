@@ -266,7 +266,7 @@ class Trainer():
                     self.train_accuracy.reset()
                     self.val_accuracy.reset()
                 else:
-                    print("Epoch: {}/{}, Train Loss: {:.3f}, Val Loss: {:.3f}".format(
+                    print("Epoch: {}/{}, Train Loss: {:.5f}, Val Loss: {:.5f}".format(
                         epoch, self.max_epochs, train_loss, val_loss)
                     )
                 print('-' * HYPHEN_COUNT)
@@ -292,7 +292,7 @@ class Trainer():
                         if self.track_accuracy:
                             filename = f"epoch={epoch}-val_loss={val_loss:.4f}-val_acc={val_acc:.4f}.pt"
                         else:
-                            filename = f"epoch={epoch}-val_loss={val_loss:.4f}.pt"
+                            filename = f"epoch={epoch}-val_loss={val_loss:.5f}.pt"
                         new_ckpt_filepath = self.ckpt_dir + filename
                         if self.save_top_k > 0:
                             # Determine the metric

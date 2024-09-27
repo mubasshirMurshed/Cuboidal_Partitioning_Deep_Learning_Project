@@ -2,8 +2,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from torch import nn
-from models.GAT_Modelv2 import GAT_Modelv2
-from models.GAT_Modelv4 import GAT_Modelv4
+from models.GAT_Modelv5 import GAT_Modelv5
 import matplotlib.pyplot as plt
 import math
 from data.datamodules import Graph_DataModule_CSV
@@ -64,7 +63,7 @@ if __name__ == "__main__":
     features = {"x_center":True, "y_center":True, "colour":True, "width":True, "height":True, "stdev":True}
     data_module = Graph_DataModule_CSV(
         dataset=MyMNIST(),
-        num_segments=784,
+        num_segments=128,
         batch_size=100,
         mode=Partition.CuPID,
         num_workers=1,
@@ -72,13 +71,13 @@ if __name__ == "__main__":
     )
 
     # Instantiate model
-    model = GAT_Modelv4(num_features=data_module.num_features, num_classes=data_module.num_classes)
+    model = GAT_Modelv5(num_features=data_module.num_features, num_classes=data_module.num_classes)
 
     # Initialise loss function
     loss_fn = nn.CrossEntropyLoss()
 
     # Model checkpoint to test
-    model_ckpt = r"saved\MNIST_CP_784_DataModule\XYCWHS\GAT_Modelv4\Run_ID__2024-09-25__00-26-19\checkpoints\best.pt"
+    model_ckpt = r"saved\MNIST_CP_128_DataModule\XYCWHS\GAT_Modelv5\Run_ID__2024-09-27__18-03-21\checkpoints\best.pt"
 
     tester = Tester(data_module, model, loss_fn)
     tester.show_mislabelled(model_ckpt)

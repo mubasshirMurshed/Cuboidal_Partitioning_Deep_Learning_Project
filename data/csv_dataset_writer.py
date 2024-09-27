@@ -175,8 +175,8 @@ Script to create the CSV files.
 """
 import time
 def main():
-    creator = CSV_Dataset_Writer("data/csv/", MyHELEN(), 256, Partition.CuPID, 
-                                 chunksize=5, overwrite=False, num_workers=20)
+    creator = CSV_Dataset_Writer("data/csv/", MyHELEN(), 512, Partition.CuPID, 
+                                 chunksize=2, overwrite=False, num_workers=20)
     start = time.perf_counter()
     creator.create_csv_files(verbose=True)
     end = time.perf_counter()

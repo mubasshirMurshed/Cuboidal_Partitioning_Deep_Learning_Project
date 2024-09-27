@@ -4,7 +4,7 @@ from torch_geometric.nn import GATv2Conv, BatchNorm
 import torch.nn.functional as F
 from torch_geometric.nn.aggr import MultiAggregation
 
-class GAT_Modelv5(torch.nn.Module):
+class GAT_Modelv5_Regression(torch.nn.Module):
     def __init__(self, num_features: int, num_classes: int):
         # Init parent
         super().__init__()
@@ -26,11 +26,11 @@ class GAT_Modelv5(torch.nn.Module):
         self.readout = MultiAggregation(["mean", "std", "max"])
 
         # Output layer
-        self.fc1 = nn.Linear(64*3, 64)
+        self.fc1 = nn.Linear(64*3, 256)
         self.dropout1 = nn.Dropout(p=0.2)
-        self.fc2 = nn.Linear(64, 64)
+        self.fc2 = nn.Linear(256, 256)
         self.dropout2 = nn.Dropout(p=0.1)
-        self.fc3 = nn.Linear(64, num_classes)
+        self.fc3 = nn.Linear(256, num_classes)
 
 
     def forward(self, x, edge_index, batch_index):

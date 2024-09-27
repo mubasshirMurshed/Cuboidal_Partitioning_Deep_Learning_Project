@@ -291,7 +291,7 @@ class HELEN(Dataset):
         data = os.listdir(self.root)
         self.image_filenames = list(filter(lambda filename: filename[-4:] == ".jpg", data))
         self.landmark_filenames = list(filter(lambda filename: filename[-4:] == ".pts", data))
-        self.rescale = Rescale((640, 640))
+        self.rescale = Rescale((224, 224))
 
     def __len__(self) -> int:
         return len(self.image_filenames)
@@ -338,7 +338,7 @@ class MyHELEN(SourceDataset):
         """
         Sets up the training, validation, and testing dataset of Omniglot.
         """
-        super().__init__(name="HELEN", shape=(640, 640, 3), num_classes=68*2)
+        super().__init__(name="HELEN", shape=(224, 224, 3), num_classes=68*2)
         self.transform = transform
 
     def train_dataset(self, transform=None) -> Dataset:
@@ -385,5 +385,8 @@ class Rescale():
         # h and w are swapped for landmarks because for images,
         # x and y axes are axis 1 and 0 respectively
         landmarks = landmarks * np.array([new_w / w, new_h / h], dtype=np.float64)
+
+        # Normalise landmark coordinates so neural net outputs are between 0 and 1
+        landmarks /= 224
 
         return img, landmarks.reshape((-1)).tolist()
