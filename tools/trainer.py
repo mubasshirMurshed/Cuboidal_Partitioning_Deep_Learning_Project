@@ -179,6 +179,10 @@ class Trainer():
                 writer = csv.writer(csv_file)
                 writer.writerow(["Epoch", "Train Loss", "Train Accuracy", "Validation Loss", "Validation Accuracy"])
 
+        # Print out the current seed
+        print('-' * HYPHEN_COUNT)
+        print(f"Seed:\t\t\t{torch.initial_seed()}")
+
         # Check if model has to be loaded
         if self.resume_from_ckpt is not None:
             self.model.load_state_dict(torch.load(self.resume_from_ckpt))

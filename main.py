@@ -18,7 +18,7 @@ from enums import Partition
 
 def main():
     # Seeding
-    seed = 42
+    seed = 0
     torch_geometric.seed_everything(seed)
 
     # Define hyperparameters
